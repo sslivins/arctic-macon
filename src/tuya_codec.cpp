@@ -98,12 +98,15 @@ ParseResult parse_frame(const uint8_t *buf, size_t buf_len, ParsedFrame &out)
         // is inline in field_b; there is no separate payload).
         flen = HDR_LEN + CHK_LEN;
     } else {
-        win = find_window(a, b);
-        if (!win) return ParseResult::UNKNOWN_WINDOW;
+        // Frame length depends only on dir + count, so it is known even for a
+        // window we don't map. Compute it first, then look the window up: an
+        // unrecognised window is still a fully-bounded, checksummed frame that
+        // the caller can catalog and skip (register-block discovery).
         flen = frame_total_len(dir, b);
         if (flen == 0 || flen > MAX_FRAME_LEN) {
-            return ParseResult::UNKNOWN_WINDOW;  // implausible header
+            return ParseResult::BAD_DIR;         // implausible length
         }
+        win = find_window(a, b);                 // may be null -> UNKNOWN_WINDOW
     }
     if (buf_len < flen) {
         return ParseResult::TRUNCATED;
@@ -115,6 +118,9 @@ ParseResult parse_frame(const uint8_t *buf, size_t buf_len, ParsedFrame &out)
         return ParseResult::BAD_CHECKSUM;
     }
 
+    // Framing + checksum are valid. Populate all common fields now so that even
+    // an unrecognised window is fully bounded and its payload can be inspected
+    // by the caller (used to discover register blocks not yet in KNOWN_WINDOWS).
     out.dir         = dir;
     out.fc          = fc;
     out.field_a     = a;
@@ -128,6 +134,9 @@ ParseResult parse_frame(const uint8_t *buf, size_t buf_len, ParsedFrame &out)
     } else {
         out.payload     = nullptr;
         out.payload_len = 0;
+    }
+    if (fc != FC_CMD && !win) {
+        return ParseResult::UNKNOWN_WINDOW;      // valid frame, unmapped window
     }
     return ParseResult::OK;
 }
