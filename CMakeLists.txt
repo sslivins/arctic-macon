@@ -10,7 +10,7 @@
 
 set(MACON_SRCS
     "src/tuya_codec.cpp"
-    "src/arctic_registers.cpp"
+    "src/macon_registers.cpp"
     "src/macon_faults.cpp")
 
 if(ESP_PLATFORM)
