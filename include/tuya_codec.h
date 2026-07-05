@@ -160,6 +160,14 @@ size_t encode_response(uint8_t *buf, size_t buf_capacity,
                        uint8_t fc, uint16_t field_a, uint16_t field_b,
                        const uint8_t *payload);
 
+/// Encode an ACK for a controller command (fc=0x06). The mainboard replies
+/// with a fixed 9-byte frame `55 AA 0F 06 <field_a:2BE> <field_b:2BE> <chk>`,
+/// echoing the command's selector/value. (Command frames carry field_b as a
+/// VALUE, not a byte count, so this is NOT a normal read response.) Returns
+/// bytes written, or 0 if buf_capacity < MIN_FRAME_LEN.
+size_t encode_command_ack(uint8_t *buf, size_t buf_capacity,
+                          uint16_t field_a, uint16_t field_b);
+
 // ---------------------------------------------------------------------------
 // Frame discovery (for streaming byte sources)
 // ---------------------------------------------------------------------------

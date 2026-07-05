@@ -196,6 +196,16 @@ size_t encode_response(uint8_t *buf, size_t buf_capacity,
     return flen;
 }
 
+size_t encode_command_ack(uint8_t *buf, size_t buf_capacity,
+                          uint16_t field_a, uint16_t field_b)
+{
+    if (!buf) return 0;
+    if (buf_capacity < MIN_FRAME_LEN) return 0;
+    write_header(buf, DIR_RESPONSE, FC_CMD, field_a, field_b);
+    buf[HDR_LEN] = compute_checksum(buf, MIN_FRAME_LEN);
+    return MIN_FRAME_LEN;
+}
+
 // ---------------------------------------------------------------------------
 // Frame discovery
 // ---------------------------------------------------------------------------
