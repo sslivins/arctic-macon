@@ -11,6 +11,7 @@
 set(MACON_SRCS
     "src/tuya_codec.cpp"
     "src/macon_registers.cpp"
+    "src/macon_advanced_params.cpp"
     "src/macon_faults.cpp")
 
 if(ESP_PLATFORM)
