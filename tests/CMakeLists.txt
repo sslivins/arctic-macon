@@ -22,3 +22,7 @@ enable_testing()
 add_executable(test_advanced_params test_advanced_params.cpp)
 target_link_libraries(test_advanced_params PRIVATE arctic_macon)
 add_test(NAME advanced_params COMMAND test_advanced_params)
+
+add_executable(test_decode_state test_decode_state.cpp)
+target_link_libraries(test_decode_state PRIVATE arctic_macon)
+add_test(NAME decode_state COMMAND test_decode_state)

@@ -17,6 +17,7 @@ register table, and the fault-code decoding that were previously copy-pasted
 | `macon_registers.{h,cpp}` | Macon register numbering, per-register metadata (name/unit/scale/signed), value + bitmap formatting, `register_lookup()`. |
 | `macon_faults.{h,cpp}` | **Canonical fault table** — the five fault bitfield registers (2007, 2125, 2126, 2127, 2128) mapped bit-by-bit to their LCD/app codes, plus `macon_decode_faults()` returning active `{code, label, severity}`. |
 | `macon_advanced_params.{h,cpp}` | The installer-only **advanced ("Cn") parameter** table (`reg = 2000 + Cn`) with per-parameter valid range / default / unit from the vendor doc, plus `validate_advanced_write()` — a **reject-not-clamp** write guardrail. |
+| `macon_state.{h,cpp}` | **Domain decode layer** — `decode_state(base, regs, count, &MaconState)` turns a raw Macon register image into one authoritative decoded struct (mode, temps, electrical, run/flags, raw fault registers). Owns which register carries which field. Also `decode_mode()`/`MaconMode` for the reg2049 reversing-valve direction. |
 
 All code is in namespace `arctic` (registers/faults/advanced-params) and
 `tuya_codec` (codec).
@@ -56,7 +57,25 @@ idf_component_register(
 ```
 
 and `#include "tuya_codec.h"`, `#include "macon_registers.h"`,
-`#include "macon_faults.h"`, `#include "macon_advanced_params.h"`.
+`#include "macon_faults.h"`, `#include "macon_advanced_params.h"`,
+`#include "macon_state.h"`.
+
+## Division of labor (consumer vs. library)
+
+The library owns the **Macon protocol/domain model**; consumers own the
+**firmware runtime**. Concretely:
+
+| Consumer owns | Library owns |
+|---------------|--------------|
+| RS485/UART I/O, FreeRTOS tasking + locking, UI/REST, snapshot publication, adapters to its own presentation types (e.g. a legacy `WorkingMode` enum) | Tuya frame parsing, register-address knowledge, register→field decode into `MaconState`, native `MaconMode`/fault semantics |
+
+A consumer should never hardcode a register address or re-implement the
+register→field mapping. It parses a frame (`tuya_codec::parse_frame`), keeps the
+resulting bytes in a register image it owns, and calls
+`arctic::decode_state(base, regs, count, &state)` to get a fully decoded
+`MaconState`. `MaconMode` uses raw-wire-aligned meaning (`Heating`/`Cooling`) —
+**never cast it onto a consumer enum, translate explicitly.**
+
 
 ## Fault table
 
