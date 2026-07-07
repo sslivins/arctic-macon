@@ -42,6 +42,34 @@
 // Each Arctic "register" on the wire is 1 byte (NOT 2 bytes like classic
 // Modbus). Per-register scaling and signedness are defined elsewhere
 // (see arctic_registers.cpp).
+//
+// ---------------------------------------------------------------------------
+// Trailing "block-tag" byte (safe to ignore)  [investigated 2026-07-07]
+// ---------------------------------------------------------------------------
+// After each *response* (dir=0x0F), the heat pump appends ONE extra byte
+// AFTER the checksum, outside the frame:
+//
+//   59-byte telemetry response (addr=0,  count=50) -> trailer 0x14
+//   67-byte holding   response (addr=50, count=58) -> trailer 0x00
+//
+// Findings (arctic-sniffer v0.3.6, live capture on the real Macon controller,
+// /api/skipped inter-byte timing):
+//   * The heat pump SENDS it, not the controller. Every trailer arrives in the
+//     same continuous burst as the response tail (gap_before = 0 us), followed
+//     by a full ~500 ms poll gap before the controller's next request. A
+//     controller ACK would show the opposite timing (turnaround gap BEFORE the
+//     byte). Measurement has microsecond resolution, so this is unambiguous.
+//   * It is deterministic PER WINDOW TYPE (0x14 telemetry / 0x00 holding), not
+//     per payload -> it is a block/window-type tag, NOT a checksum, byte count
+//     (0x14=20 != 59), CRC, echoed register, or line noise.
+//   * It sits AFTER chk, so it never affects frame validation. The decoder
+//     simply resyncs past it; the following frame always decodes cleanly.
+//
+// Conclusion: safe to ignore. The codec treats it as a skipped inter-frame
+// byte. One open (non-blocking) question: whether 0x14 is a fixed tag or
+// coincidentally echoes holding reg 2051 (P43 "3-Way Valve Time" = 20s). That
+// needs a physical P43 change at the controller to confirm; not worth the
+// effort unless the trailer value is ever seen to vary.
 // ---------------------------------------------------------------------------
 
 #include <cstdint>
