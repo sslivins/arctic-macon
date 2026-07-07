@@ -30,6 +30,13 @@ constexpr uint16_t REG_FAULT_RUNSTATE       = 2007;  // fault bitfield + run ind
 constexpr uint16_t REG_WATER_TANK_TEMP      = 2008;  // o1  water tank temp
 constexpr uint16_t REG_HOT_WATER_SETPOINT   = 2012;  // hot water setpoint
 
+// Operating direction, set by the reversing valve (NOT a user-selectable menu
+// mode). Runtime telemetry, not static config: observed flipping 0->4 live when
+// the unit switched to cooling. Validated across the full 4749-row historical
+// dataset — only 0x00 (heating) and 0x04 (cooling) ever appear. See macon_state.h
+// for the MaconMode decode (bit-masked on 0x04, Unknown for any unobserved bit).
+constexpr uint16_t REG_OPERATING_MODE       = 2049;
+
 constexpr uint16_t HOLDING_START = 2000;
 constexpr uint16_t HOLDING_COUNT = 58;   // 2000–2057
 
