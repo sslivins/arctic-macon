@@ -124,4 +124,38 @@ struct DecodeStatus {
 DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
                           MaconState *out);
 
+// ---------------------------------------------------------------------------
+// Operating state
+// ---------------------------------------------------------------------------
+//
+// The overall thing the unit is *doing right now*, layering the run/fault flags
+// on top of the reversing-valve direction. This is the single, ground-truthed
+// place for that derivation so every consumer (controller hero card, sniffer
+// dashboard, simulator) presents the same state instead of each re-deriving it.
+//
+// Direction stays native/neutral here: heating is reported as Heating, never a
+// consumer-specific label like "Floor Heating" — the consumer applies its own
+// installation-specific wording.
+
+enum class MaconOperation : uint8_t {
+    Unknown,   // status registers were absent from the decoded window
+    Off,       // enabled bit (reg2007 0x20) clear — unit standby
+    Fault,     // an active fault is present
+    Idle,      // enabled but the compressor is not running
+    Defrost,   // defrost cycle active
+    Cooling,   // compressor running, reversing valve = cooling
+    Heating,   // compressor running, reversing valve = heating
+};
+
+/// Derive the overall operating state from a decoded MaconState.
+///
+/// Priority: Unknown (no data) -> Fault -> Off -> Defrost -> Idle -> direction.
+/// The "compressor running" gate is the reg2141 frequency (> 0), NOT the reg2130
+/// icon bit: on this unit reg2130 reads 0 even while the compressor runs, so the
+/// icon bit would falsely report Idle.
+MaconOperation decode_operation(const MaconState &s);
+
+/// Human-readable name for a MaconOperation (e.g. "Heating", "Idle", "Defrost").
+const char *operation_name(MaconOperation op);
+
 }  // namespace arctic
