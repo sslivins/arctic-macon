@@ -60,6 +60,7 @@ int main() {
     set_reg(regs, REG_AC_VOLTAGE, 23);          // *10 => 230 V
     set_reg(regs, REG_DC_BUS_VOLTAGE, 36);      // *10 => 360 V
     set_reg(regs, REG_COMPRESSOR_FREQ, 55);
+    set_reg(regs, REG_REALTIME_POWER, 39);      // *100 => 3900 W
     set_reg(regs, REG_FAULT, 0x80);             // P01 water flow bit
 
     MaconState st;
@@ -82,6 +83,8 @@ int main() {
     CHECK(st.ac_voltage == 230);                // x10
     CHECK(st.dc_voltage == 360);                // x10
     CHECK(st.compressor_freq == 55);
+    CHECK(st.realtime_power_w == 3900);         // x100
+    CHECK(st.realtime_power_valid);
     CHECK(st.fault_ref == 0x80);
     CHECK(st.faults_valid);
     CHECK(ds.registers_present > 0);

@@ -109,6 +109,8 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
         val(REG_DC_BUS_VOLTAGE, &out->dc_voltage_valid) * 10);           // reg2001 A7 (x10 => volts)
     out->primary_eev     = val(REG_MAIN_EEV, &out->primary_eev_valid);   // reg2140 A5
     out->compressor_freq = val(REG_COMPRESSOR_FREQ, &out->compressor_freq_valid); // reg2141 A14
+    out->realtime_power_w = static_cast<uint32_t>(
+        val(REG_REALTIME_POWER, &out->realtime_power_valid) * 100);      // reg2114 A9 (x100 => W)
 
     // --- raw fault/run registers (bit decode stays in the consumer) --------
     bool f_run_v = false, f_ee_v = false, f_comp_v = false, f_elec_v = false, f_ref_v = false;
