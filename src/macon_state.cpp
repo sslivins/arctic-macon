@@ -103,7 +103,8 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
 
     // --- electrical --------------------------------------------------------
     out->ac_current      = val(REG_AC_CURRENT, &out->ac_current_valid);   // reg2000 A4
-    out->ac_voltage      = val(REG_AC_VOLTAGE, &out->ac_voltage_valid);   // reg2101 A13
+    out->ac_voltage      = static_cast<uint16_t>(
+        val(REG_AC_VOLTAGE, &out->ac_voltage_valid) * 10);               // reg2101 A13 (x10 => volts)
     out->dc_voltage      = static_cast<uint16_t>(
         val(REG_DC_BUS_VOLTAGE, &out->dc_voltage_valid) * 10);           // reg2001 A7 (x10 => volts)
     out->primary_eev     = val(REG_MAIN_EEV, &out->primary_eev_valid);   // reg2140 A5
