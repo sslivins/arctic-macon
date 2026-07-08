@@ -107,6 +107,70 @@ int main() {
     CHECK(ss.ac_current_valid);                   // reg2000 present
     CHECK(!ss.outlet_valid);                      // reg2132 absent
 
+    // --- decode_operation --------------------------------------------------
+    {
+        uint16_t r[COUNT];
+        auto reset = [&]() {
+            std::memset(r, 0, sizeof(r));
+            set_reg(r, REG_FAULT_RUNSTATE, 0x20);   // enabled, no fault
+            set_reg(r, REG_COMPRESSOR_FREQ, 55);    // compressor running
+            set_reg(r, REG_OPERATING_MODE, 0);      // heating direction
+        };
+        MaconState o;
+
+        reset();                                    // running + heating
+        decode_state(BASE, r, COUNT, &o);
+        CHECK(decode_operation(o) == MaconOperation::Heating);
+
+        reset();                                    // running + cooling
+        set_reg(r, REG_OPERATING_MODE, 4);
+        decode_state(BASE, r, COUNT, &o);
+        CHECK(decode_operation(o) == MaconOperation::Cooling);
+
+        reset();                                    // enabled, compressor stopped
+        set_reg(r, REG_COMPRESSOR_FREQ, 0);
+        decode_state(BASE, r, COUNT, &o);
+        CHECK(decode_operation(o) == MaconOperation::Idle);
+
+        reset();                                    // defrost outranks direction
+        set_reg(r, REG_ICON_BITS2, 0x02);
+        decode_state(BASE, r, COUNT, &o);
+        CHECK(decode_operation(o) == MaconOperation::Defrost);
+
+        reset();                                    // not enabled -> Off
+        set_reg(r, REG_FAULT_RUNSTATE, 0x00);
+        decode_state(BASE, r, COUNT, &o);
+        CHECK(decode_operation(o) == MaconOperation::Off);
+
+        reset();                                    // active fault outranks Off
+        set_reg(r, REG_FAULT_RUNSTATE, 0x00);
+        set_reg(r, REG_FAULT, 0x80);
+        decode_state(BASE, r, COUNT, &o);
+        CHECK(decode_operation(o) == MaconOperation::Fault);
+
+        reset();                                    // reg2007 low-nibble fault bit
+        set_reg(r, REG_FAULT_RUNSTATE, 0x21);       // enabled + P15
+        decode_state(BASE, r, COUNT, &o);
+        CHECK(decode_operation(o) == MaconOperation::Fault);
+
+        reset();                                    // reg2130 icon bit must NOT gate
+        set_reg(r, REG_COMPRESSOR_FREQ, 0);         // not running by frequency
+        set_reg(r, REG_STATUS_BYTE, 0x04);          // icon compressor bit set
+        decode_state(BASE, r, COUNT, &o);
+        CHECK(decode_operation(o) == MaconOperation::Idle);
+
+        // No status registers decoded -> Unknown.
+        uint16_t few[10];
+        std::memset(few, 0, sizeof(few));
+        MaconState u;
+        decode_state(BASE, few, 10, &u);            // covers 2000..2009 only
+        CHECK(decode_operation(u) == MaconOperation::Unknown);
+
+        CHECK(std::strcmp(operation_name(MaconOperation::Heating), "Heating") == 0);
+        CHECK(std::strcmp(operation_name(MaconOperation::Idle), "Idle") == 0);
+        CHECK(std::strcmp(operation_name(MaconOperation::Off), "Off") == 0);
+    }
+
     // --- null-safety -------------------------------------------------------
     DecodeStatus dz = decode_state(BASE, nullptr, 0, &ss);
     CHECK(dz.registers_present == 0);

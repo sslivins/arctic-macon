@@ -121,4 +121,54 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     return status;
 }
 
+MaconOperation decode_operation(const MaconState &s) {
+    // No status/telemetry registers decoded -> nothing to say.
+    if (!s.faults_valid && !s.mode_valid && !s.compressor_freq_valid) {
+        return MaconOperation::Unknown;
+    }
+
+    // Fault takes priority over everything else: the four sensor/protection
+    // bitfields (reg2125-2128) plus the fault bits of the run-state byte
+    // (reg2007 low nibble; bit5 0x20 is the enable flag, not a fault).
+    const bool fault =
+        (s.faults_valid && (s.fault_ee | s.fault_comp | s.fault_elec | s.fault_ref)) ||
+        (s.fault_run & 0x0F);
+    if (fault) {
+        return MaconOperation::Fault;
+    }
+
+    // Enable flag: reg2007 bit5. Masked (not == 0x20) so a co-set bit can't hide
+    // the enabled state.
+    if (!(s.fault_run & 0x20)) {
+        return MaconOperation::Off;
+    }
+
+    if (s.defrost_on) {
+        return MaconOperation::Defrost;
+    }
+
+    // Compressor-running gate: reg2141 frequency, NOT the reg2130 icon bit
+    // (which reads 0 on this unit even while the compressor runs).
+    if (!(s.compressor_freq_valid && s.compressor_freq > 0)) {
+        return MaconOperation::Idle;
+    }
+
+    // Running: report the reversing-valve direction. An Unknown/untrusted mode
+    // falls back to Heating (this is a heating-biased unit).
+    return (s.mode == MaconMode::Cooling) ? MaconOperation::Cooling
+                                          : MaconOperation::Heating;
+}
+
+const char *operation_name(MaconOperation op) {
+    switch (op) {
+        case MaconOperation::Off:     return "Off";
+        case MaconOperation::Fault:   return "Fault";
+        case MaconOperation::Idle:    return "Idle";
+        case MaconOperation::Defrost: return "Defrost";
+        case MaconOperation::Cooling: return "Cooling";
+        case MaconOperation::Heating: return "Heating";
+        default:                      return "Unknown";
+    }
+}
+
 }  // namespace arctic
