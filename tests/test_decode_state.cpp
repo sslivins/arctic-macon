@@ -57,7 +57,7 @@ int main() {
     set_reg(regs, REG_DISCHARGE_TEMP, 85);
     set_reg(regs, REG_HOT_WATER_SETPOINT, 50);
     set_reg(regs, REG_AC_CURRENT, 12);
-    set_reg(regs, REG_AC_VOLTAGE, 23);
+    set_reg(regs, REG_AC_VOLTAGE, 23);          // *10 => 230 V
     set_reg(regs, REG_DC_BUS_VOLTAGE, 36);      // *10 => 360 V
     set_reg(regs, REG_COMPRESSOR_FREQ, 55);
     set_reg(regs, REG_FAULT, 0x80);             // P01 water flow bit
@@ -79,7 +79,7 @@ int main() {
     CHECK(st.discharge_c == 85);
     CHECK(st.hot_water_setpoint == 50);
     CHECK(st.ac_current == 12);
-    CHECK(st.ac_voltage == 23);
+    CHECK(st.ac_voltage == 230);                // x10
     CHECK(st.dc_voltage == 360);                // x10
     CHECK(st.compressor_freq == 55);
     CHECK(st.fault_ref == 0x80);
