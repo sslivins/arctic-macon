@@ -93,6 +93,7 @@ struct MaconState {
     uint16_t dc_voltage;        bool dc_voltage_valid;      // reg2001 A7 (already x10 => volts)
     uint16_t primary_eev;       bool primary_eev_valid;     // reg2140 A5
     uint16_t compressor_freq;   bool compressor_freq_valid; // reg2141 A14
+    uint32_t realtime_power_w;  bool realtime_power_valid;  // reg2114 A9 (x100 => W)
 
     // Raw Macon fault/run registers. These are address-encapsulated here so the
     // consumer no longer needs the reg numbers; the bit->fault decode itself is
