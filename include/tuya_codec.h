@@ -14,7 +14,15 @@
 //
 //   dir   : 0xF0 = controller -> heat pump (request)
 //           0x0F = heat pump -> controller (response)
-//   fc    : 0x03 = read register block (only FC observed so far)
+//   fc    : 0x03 = read register block
+//           0x06 = write register block (controller -> unit). Confirmed live
+//                  2026-07-08: a setpoint change emits
+//                  `55 AA F0 06 0000 0001 <°C> <chk>` (addr 0, count 1, one
+//                  data byte = the new setpoint in whole °C). The unit ACKs
+//                  with a 9-byte `55 AA 0F 06 <addr:2> <count:2> <chk>` that
+//                  echoes addr+count but carries NO data byte. So an fc=0x06
+//                  REQUEST length = HDR_LEN + count + CHK_LEN, while an fc=0x06
+//                  RESPONSE length = HDR_LEN + CHK_LEN (like Modbus FC16).
 //   addr  : starting BYTE offset into the unified Arctic register page.
 //           NOTE: this is NOT a Modbus register number; it is a byte offset.
 //           Currently only two values seen: 0 (telemetry window) and 50
@@ -29,12 +37,20 @@
 //
 // Two register windows are observed in rotation:
 //
-//   addr=0,  count=50 -> "telemetry" (input regs 2100+):
-//                        bytes 0..6  = static 7-byte prefix
-//                                      `0a 28 32 05 01 00 0f`
-//                        byte 7      = reg 2100
-//                        byte 8      = reg 2101
-//                        ... etc up to byte 49 = reg 2142
+//   addr=0,  count=50 -> "telemetry" (regs 2093..2142):
+//                        byte 0 = reg 2093 = COOLING SETPOINT (whole °C).
+//                                 Confirmed live 2026-07-08: flipped 0x0C (12)
+//                                 -> 0x18 (24) the instant the controller's
+//                                 setpoint dial moved 12->24 °C.
+//                        byte 1 = reg 2094 (0x28=40; likely heating setpoint,
+//                                 UNCONFIRMED).
+//                        byte 2 = reg 2095 (0x32=50; mirrors the hot-water
+//                                 setpoint, UNCONFIRMED).
+//                        bytes 3..6 = regs 2096..2099 (not yet decoded).
+//                        byte 7 = reg 2100, byte 8 = reg 2101, ... byte 49 =
+//                                 reg 2142.
+//                        (Formerly bytes 0..6 were skipped as a "static
+//                        prefix"; byte 0 is NOT static — it is the setpoint.)
 //
 //   addr=50, count=58 -> "holding" (regs 2000..2057):
 //                        no prefix; byte 0 = reg 2000, byte 1 = reg 2001, ...
@@ -106,7 +122,7 @@ struct RegWindow {
 };
 
 constexpr RegWindow KNOWN_WINDOWS[] = {
-    { 0,  50, 2100, 7 },  // telemetry (input regs)
+    { 0,  50, 2093, 0 },  // telemetry (byte0 = reg2093 cooling setpoint)
     { 50, 58, 2000, 0 },  // holding regs
 };
 constexpr size_t KNOWN_WINDOWS_COUNT = sizeof(KNOWN_WINDOWS) / sizeof(KNOWN_WINDOWS[0]);
@@ -130,8 +146,16 @@ uint8_t compute_checksum(const uint8_t *frame, size_t frame_len);
 
 /// Compute the expected total frame length given the dir byte and the
 /// count field (`field_b`). Returns 0 if dir is unknown or the length
-/// would exceed MAX_FRAME_LEN.
+/// would exceed MAX_FRAME_LEN. Valid for fc=0x03 (read) frames only; use
+/// `command_frame_len()` for fc=0x06 (command/write) frames.
 size_t frame_total_len(uint8_t dir, uint16_t field_b);
+
+/// Compute the expected total frame length of an fc=0x06 command frame.
+/// A REQUEST (dir=0xF0) carries `count` inline data bytes, so its length is
+/// HDR_LEN + count + CHK_LEN. A RESPONSE/ACK (dir=0x0F) echoes addr+count with
+/// no data, so its length is HDR_LEN + CHK_LEN. Returns 0 for an unknown dir
+/// or an over-long frame.
+size_t command_frame_len(uint8_t dir, uint16_t count);
 
 // ---------------------------------------------------------------------------
 // Parsing
@@ -154,8 +178,10 @@ struct ParsedFrame {
     uint16_t       field_b;      // wire count field (payload byte count)
     const RegWindow *window;     // matched window (never null on OK)
     const uint8_t *payload;      // pointer to first payload byte, or nullptr
-                                 // for request frames (which carry no payload)
-    size_t         payload_len;  // = field_b for responses, 0 for requests
+                                 // for frames that carry no payload (read
+                                 // requests, and fc=0x06 ACK responses)
+    size_t         payload_len;  // = field_b for read responses and fc=0x06
+                                 // write requests, 0 otherwise
     size_t         frame_len;    // total frame length consumed from buf
     uint8_t        checksum;     // received checksum byte
 };
@@ -188,11 +214,19 @@ size_t encode_response(uint8_t *buf, size_t buf_capacity,
                        uint8_t fc, uint16_t field_a, uint16_t field_b,
                        const uint8_t *payload);
 
+/// Encode an fc=0x06 command (write) REQUEST frame from the controller to the
+/// unit: `55 AA F0 06 <field_a:2BE> <count:2BE> <data:count> <chk>`.
+/// `data` must point to exactly `count` bytes (may be null iff count == 0).
+/// For a setpoint write this is field_a=0x0000, count=1, data={celsius}.
+/// Returns bytes written (HDR_LEN + count + CHK_LEN), or 0 on error
+/// (null buf, null data with count>0, buffer too small, over-long frame).
+size_t encode_command(uint8_t *buf, size_t buf_capacity,
+                      uint16_t field_a, uint16_t count, const uint8_t *data);
+
 /// Encode an ACK for a controller command (fc=0x06). The mainboard replies
 /// with a fixed 9-byte frame `55 AA 0F 06 <field_a:2BE> <field_b:2BE> <chk>`,
-/// echoing the command's selector/value. (Command frames carry field_b as a
-/// VALUE, not a byte count, so this is NOT a normal read response.) Returns
-/// bytes written, or 0 if buf_capacity < MIN_FRAME_LEN.
+/// echoing the command's addr (`field_a`) and register count (`field_b`) with
+/// NO data byte. Returns bytes written, or 0 if buf_capacity < MIN_FRAME_LEN.
 size_t encode_command_ack(uint8_t *buf, size_t buf_capacity,
                           uint16_t field_a, uint16_t field_b);
 

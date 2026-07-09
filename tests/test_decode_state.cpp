@@ -56,6 +56,7 @@ int main() {
     set_reg(regs, REG_OUTDOOR_AMBIENT_TEMP, (uint16_t)(uint8_t)(int8_t)-7); // sub-zero
     set_reg(regs, REG_DISCHARGE_TEMP, 85);
     set_reg(regs, REG_HOT_WATER_SETPOINT, 50);
+    set_reg(regs, REG_COOLING_SETPOINT, 24);    // reg2093 cooling setpoint
     set_reg(regs, REG_AC_CURRENT, 12);
     set_reg(regs, REG_AC_VOLTAGE, 23);          // *10 => 230 V
     set_reg(regs, REG_DC_BUS_VOLTAGE, 36);      // *10 => 360 V
@@ -79,6 +80,8 @@ int main() {
     CHECK(st.outdoor_ambient_c == -7);          // signed byte decode
     CHECK(st.discharge_c == 85);
     CHECK(st.hot_water_setpoint == 50);
+    CHECK(st.cooling_setpoint == 24);
+    CHECK(st.cooling_setpoint_valid);
     CHECK(st.ac_current == 12);
     CHECK(st.ac_voltage == 230);                // x10
     CHECK(st.dc_voltage == 360);                // x10
@@ -172,6 +175,20 @@ int main() {
         CHECK(std::strcmp(operation_name(MaconOperation::Heating), "Heating") == 0);
         CHECK(std::strcmp(operation_name(MaconOperation::Idle), "Idle") == 0);
         CHECK(std::strcmp(operation_name(MaconOperation::Off), "Off") == 0);
+    }
+
+    // --- encode_cooling_setpoint: byte-exact vs the live capture -----------
+    // Live 2026-07-08: dialing to 24 °C emitted `55 AA F0 06 00 00 00 01 18 F0`.
+    {
+        uint8_t buf[16];
+        size_t n = encode_cooling_setpoint(buf, sizeof(buf), 24);
+        CHECK(n == 10);
+        const uint8_t expected[10] =
+            { 0x55, 0xAA, 0xF0, 0x06, 0x00, 0x00, 0x00, 0x01, 0x18, 0xF0 };
+        CHECK(std::memcmp(buf, expected, 10) == 0);
+
+        // A too-small buffer must fail cleanly (return 0).
+        CHECK(encode_cooling_setpoint(buf, 4, 24) == 0);
     }
 
     // --- null-safety -------------------------------------------------------

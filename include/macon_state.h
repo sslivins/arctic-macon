@@ -84,8 +84,9 @@ struct MaconState {
     int16_t suction_c;          bool suction_valid;         // reg2137 A3
     int16_t outdoor_coil_c;     bool outdoor_coil_valid;    // reg2136 A2
 
-    // Setpoint.
+    // Setpoints.
     int16_t hot_water_setpoint; bool hot_water_setpoint_valid;  // reg2012
+    int16_t cooling_setpoint;   bool cooling_setpoint_valid;     // reg2093 (controller-written)
 
     // Electrical.
     uint16_t ac_current;        bool ac_current_valid;      // reg2000 A4
@@ -158,5 +159,27 @@ MaconOperation decode_operation(const MaconState &s);
 
 /// Human-readable name for a MaconOperation (e.g. "Heating", "Idle", "Defrost").
 const char *operation_name(MaconOperation op);
+
+// ---------------------------------------------------------------------------
+// Setpoint write (controller -> unit)
+// ---------------------------------------------------------------------------
+//
+// The OEM controller (bus master) sets the cooling setpoint by WRITING it to
+// the mainboard (slave) with a Tuya fc=0x06 command frame. Confirmed live
+// 2026-07-08: dialing the setpoint from 12 -> 24 °C emitted exactly one
+// non-read frame on the bus: `55 AA F0 06 0000 0001 18 <chk>` (addr 0,
+// count 1, one data byte = new setpoint in whole °C). The mainboard stores it
+// and its internal thermostat runs/stops the compressor accordingly.
+//
+// WARNING: this write path is byte-exact-verified against the live capture but
+// has NOT been exercised on real hardware (our sniffer is listen-only). Treat
+// as unvalidated until proven on a device that can transmit.
+
+/// Encode a cooling-setpoint write command frame (fc=0x06) ready to transmit
+/// to the unit. `celsius` is the whole-°C setpoint (clamped to int8 range).
+/// Writes into `buf` (capacity `buf_capacity`); returns the frame length in
+/// bytes, or 0 on error (null buf / buffer too small). The produced frame is
+/// `55 AA F0 06 00 00 00 01 <celsius> <chk>` (10 bytes).
+size_t encode_cooling_setpoint(uint8_t *buf, size_t buf_capacity, int celsius);
 
 }  // namespace arctic
