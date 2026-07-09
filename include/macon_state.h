@@ -85,8 +85,10 @@ struct MaconState {
     int16_t outdoor_coil_c;     bool outdoor_coil_valid;    // reg2136 A2
 
     // Setpoints.
-    int16_t hot_water_setpoint; bool hot_water_setpoint_valid;  // reg2012
-    int16_t cooling_setpoint;   bool cooling_setpoint_valid;     // reg2093 (controller-written)
+    int16_t cooling_setpoint;   bool cooling_setpoint_valid;    // reg2093 wire 0x0000 (controller-written)
+    int16_t hot_water_setpoint; bool hot_water_setpoint_valid;  // reg2095 wire 0x0002 (controller-written, live)
+    int16_t aux_heat_setpoint;  bool aux_heat_setpoint_valid;   // reg2094 wire 0x0001 (UNVERIFIED aux/heating)
+    int16_t hot_water_ceiling;  bool hot_water_ceiling_valid;   // reg2012 Cn13 max hot-water temp (ceiling, not live)
 
     // Electrical.
     uint16_t ac_current;        bool ac_current_valid;      // reg2000 A4

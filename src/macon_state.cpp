@@ -99,10 +99,14 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     out->outdoor_coil_c    = s8(val(REG_COIL_TEMP, &out->outdoor_coil_valid));           // reg2136 A2
 
     // --- setpoints ---------------------------------------------------------
-    out->hot_water_setpoint =
-        static_cast<int16_t>(val(REG_HOT_WATER_SETPOINT, &out->hot_water_setpoint_valid)); // reg2012
     out->cooling_setpoint =
-        s8(val(REG_COOLING_SETPOINT, &out->cooling_setpoint_valid));  // reg2093 (controller-written)
+        s8(val(REG_COOLING_SETPOINT, &out->cooling_setpoint_valid));   // reg2093 wire 0x0000
+    out->hot_water_setpoint =
+        s8(val(REG_HOT_WATER_SETPOINT, &out->hot_water_setpoint_valid)); // reg2095 wire 0x0002 (live)
+    out->aux_heat_setpoint =
+        s8(val(REG_AUX_HEAT_SETPOINT, &out->aux_heat_setpoint_valid));   // reg2094 wire 0x0001 (UNVERIFIED)
+    out->hot_water_ceiling =
+        static_cast<int16_t>(val(REG_HOT_WATER_CEILING, &out->hot_water_ceiling_valid)); // reg2012 Cn13 ceiling
 
     // --- electrical --------------------------------------------------------
     out->ac_current      = val(REG_AC_CURRENT, &out->ac_current_valid);   // reg2000 A4

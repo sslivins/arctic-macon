@@ -55,8 +55,10 @@ int main() {
     set_reg(regs, REG_INLET_WATER_TEMP, 38);
     set_reg(regs, REG_OUTDOOR_AMBIENT_TEMP, (uint16_t)(uint8_t)(int8_t)-7); // sub-zero
     set_reg(regs, REG_DISCHARGE_TEMP, 85);
-    set_reg(regs, REG_HOT_WATER_SETPOINT, 50);
+    set_reg(regs, REG_HOT_WATER_CEILING, 50);   // reg2012 Cn13 ceiling
     set_reg(regs, REG_COOLING_SETPOINT, 24);    // reg2093 cooling setpoint
+    set_reg(regs, REG_AUX_HEAT_SETPOINT, 40);   // reg2094 aux/heating (unverified)
+    set_reg(regs, REG_HOT_WATER_SETPOINT, 38);  // reg2095 live hot-water setpoint
     set_reg(regs, REG_AC_CURRENT, 12);
     set_reg(regs, REG_AC_VOLTAGE, 23);          // *10 => 230 V
     set_reg(regs, REG_DC_BUS_VOLTAGE, 36);      // *10 => 360 V
@@ -79,7 +81,12 @@ int main() {
     CHECK(st.inlet_c == 38);
     CHECK(st.outdoor_ambient_c == -7);          // signed byte decode
     CHECK(st.discharge_c == 85);
-    CHECK(st.hot_water_setpoint == 50);
+    CHECK(st.hot_water_ceiling == 50);
+    CHECK(st.hot_water_ceiling_valid);
+    CHECK(st.hot_water_setpoint == 38);
+    CHECK(st.hot_water_setpoint_valid);
+    CHECK(st.aux_heat_setpoint == 40);
+    CHECK(st.aux_heat_setpoint_valid);
     CHECK(st.cooling_setpoint == 24);
     CHECK(st.cooling_setpoint_valid);
     CHECK(st.ac_current == 12);
