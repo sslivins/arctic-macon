@@ -51,6 +51,19 @@ size_t frame_total_len(uint8_t dir, uint16_t field_b)
     return (flen > MAX_FRAME_LEN) ? 0 : flen;
 }
 
+size_t command_frame_len(uint8_t dir, uint16_t count)
+{
+    size_t flen = 0;
+    if (dir == DIR_REQUEST) {
+        flen = HDR_LEN + count + CHK_LEN;     // 9 + inline data bytes
+    } else if (dir == DIR_RESPONSE) {
+        flen = HDR_LEN + CHK_LEN;             // 9, ACK carries no data
+    } else {
+        return 0;
+    }
+    return (flen > MAX_FRAME_LEN) ? 0 : flen;
+}
+
 // ---------------------------------------------------------------------------
 // Header sanity (private helper)
 // ---------------------------------------------------------------------------
@@ -93,10 +106,14 @@ ParseResult parse_frame(const uint8_t *buf, size_t buf_len, ParsedFrame &out)
     const RegWindow *win = nullptr;
     size_t flen = 0;
     if (fc == FC_CMD) {
-        // Command frame: field_a/field_b are a command selector/value, not a
-        // register window. Fixed 9-byte length in both directions (the value
-        // is inline in field_b; there is no separate payload).
-        flen = HDR_LEN + CHK_LEN;
+        // Command (write) frame. The controller REQUEST (dir=0xF0) carries
+        // `field_b` inline data bytes (e.g. the setpoint), so its length is
+        // HDR_LEN + count + CHK_LEN. The unit's ACK RESPONSE (dir=0x0F) echoes
+        // addr+count with no data (HDR_LEN + CHK_LEN). Not a register window.
+        flen = command_frame_len(dir, b);
+        if (flen == 0 || flen > MAX_FRAME_LEN) {
+            return ParseResult::BAD_DIR;         // implausible length
+        }
     } else {
         // Frame length depends only on dir + count, so it is known even for a
         // window we don't map. Compute it first, then look the window up: an
@@ -129,6 +146,10 @@ ParseResult parse_frame(const uint8_t *buf, size_t buf_len, ParsedFrame &out)
     out.frame_len   = flen;
     out.checksum    = chk_actual;
     if (fc == FC_READ && dir == DIR_RESPONSE) {
+        out.payload     = buf + HDR_LEN;
+        out.payload_len = b;
+    } else if (fc == FC_CMD && dir == DIR_REQUEST && b > 0) {
+        // Controller write request carries `count` inline data bytes.
         out.payload     = buf + HDR_LEN;
         out.payload_len = b;
     } else {
@@ -204,6 +225,24 @@ size_t encode_command_ack(uint8_t *buf, size_t buf_capacity,
     write_header(buf, DIR_RESPONSE, FC_CMD, field_a, field_b);
     buf[HDR_LEN] = compute_checksum(buf, MIN_FRAME_LEN);
     return MIN_FRAME_LEN;
+}
+
+size_t encode_command(uint8_t *buf, size_t buf_capacity,
+                      uint16_t field_a, uint16_t count, const uint8_t *data)
+{
+    if (!buf) return 0;
+    if (count > 0 && !data) return 0;
+
+    const size_t flen = command_frame_len(DIR_REQUEST, count);
+    if (flen == 0 || flen > MAX_FRAME_LEN) return 0;
+    if (buf_capacity < flen) return 0;
+
+    write_header(buf, DIR_REQUEST, FC_CMD, field_a, count);
+    if (count > 0) {
+        std::memcpy(buf + HDR_LEN, data, count);
+    }
+    buf[flen - 1] = compute_checksum(buf, flen);
+    return flen;
 }
 
 // ---------------------------------------------------------------------------

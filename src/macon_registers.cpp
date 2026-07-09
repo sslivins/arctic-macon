@@ -33,7 +33,8 @@ static const RegEntry s_registers[] = {
     { 2008, { "Water Tank Temp",        "°C",    1.0f,   true  } },  // o1
     { 2012, { "Hot Water Setpoint",     "°C",    1.0f,   false } },
 
-    // "Telemetry" window (base 2100)
+    // "Telemetry" window (base 2093)
+    { 2093, { "Cooling Setpoint",       "°C",    1.0f,   false } },  // controller-written
     { 2101, { "AC Voltage",             "V",     10.0f,  false } },  // A13
     { 2104, { "Main EEV",               "steps", 1.0f,   false } },  // A5
     { 2113, { "IPM Temp",               "°C",    1.0f,   true  } },  // A8

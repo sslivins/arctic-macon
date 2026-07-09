@@ -26,3 +26,7 @@ add_test(NAME advanced_params COMMAND test_advanced_params)
 add_executable(test_decode_state test_decode_state.cpp)
 target_link_libraries(test_decode_state PRIVATE arctic_macon)
 add_test(NAME decode_state COMMAND test_decode_state)
+
+add_executable(test_tuya_codec test_tuya_codec.cpp)
+target_link_libraries(test_tuya_codec PRIVATE arctic_macon)
+add_test(NAME tuya_codec COMMAND test_tuya_codec)

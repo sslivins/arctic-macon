@@ -40,7 +40,9 @@ constexpr uint16_t REG_OPERATING_MODE       = 2049;
 constexpr uint16_t HOLDING_START = 2000;
 constexpr uint16_t HOLDING_COUNT = 58;   // 2000–2057
 
-// "Telemetry" window (wire addr=0, base 2100 after a 7-byte prefix).
+// "Telemetry" window (wire addr=0, base 2093; byte0 = reg2093 = cooling
+// setpoint — the former "7-byte prefix" is NOT static, byte0 is the setpoint).
+constexpr uint16_t REG_COOLING_SETPOINT     = 2093;  // cooling setpoint (whole °C)
 constexpr uint16_t REG_AC_VOLTAGE           = 2101;  // A13 AC input voltage (x10 = V)
 constexpr uint16_t REG_MAIN_EEV             = 2104;  // A5  main elec. expansion valve
 constexpr uint16_t REG_IPM_TEMP             = 2113;  // A8  IPM module temp
@@ -60,8 +62,8 @@ constexpr uint16_t REG_SUCTION_TEMP         = 2137;  // A3  suction temp
 constexpr uint16_t REG_DISCHARGE_TEMP       = 2138;  // A1  discharge temp
 constexpr uint16_t REG_COMPRESSOR_FREQ      = 2141;  // A14 compressor frequency
 
-constexpr uint16_t INPUT_START = 2100;
-constexpr uint16_t INPUT_COUNT = 43;     // 2100–2142 (telemetry window reaches 2142)
+constexpr uint16_t INPUT_START = 2093;
+constexpr uint16_t INPUT_COUNT = 50;     // 2093–2142 (telemetry window, no prefix)
 
 // ---------------------------------------------------------------------------
 // Register metadata

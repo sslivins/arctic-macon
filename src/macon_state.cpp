@@ -1,5 +1,6 @@
 #include "macon_state.h"
 #include "macon_registers.h"
+#include "tuya_codec.h"
 
 #include <cstring>
 
@@ -97,9 +98,11 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     out->suction_c         = s8(val(REG_SUCTION_TEMP, &out->suction_valid));             // reg2137 A3
     out->outdoor_coil_c    = s8(val(REG_COIL_TEMP, &out->outdoor_coil_valid));           // reg2136 A2
 
-    // --- setpoint ----------------------------------------------------------
+    // --- setpoints ---------------------------------------------------------
     out->hot_water_setpoint =
         static_cast<int16_t>(val(REG_HOT_WATER_SETPOINT, &out->hot_water_setpoint_valid)); // reg2012
+    out->cooling_setpoint =
+        s8(val(REG_COOLING_SETPOINT, &out->cooling_setpoint_valid));  // reg2093 (controller-written)
 
     // --- electrical --------------------------------------------------------
     out->ac_current      = val(REG_AC_CURRENT, &out->ac_current_valid);   // reg2000 A4
@@ -172,6 +175,16 @@ const char *operation_name(MaconOperation op) {
         case MaconOperation::Heating: return "Heating";
         default:                      return "Unknown";
     }
+}
+
+size_t encode_cooling_setpoint(uint8_t *buf, size_t buf_capacity, int celsius) {
+    // Clamp to a single signed byte (the wire carries one data byte).
+    if (celsius < -128) celsius = -128;
+    if (celsius >  127) celsius =  127;
+    const uint8_t data = static_cast<uint8_t>(static_cast<int8_t>(celsius));
+    // Cooling setpoint lives at wire addr 0x0000, count 1 (see reg2093).
+    return tuya_codec::encode_command(buf, buf_capacity,
+                                      /*field_a=*/0x0000, /*count=*/1, &data);
 }
 
 }  // namespace arctic
