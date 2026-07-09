@@ -30,3 +30,7 @@ add_test(NAME decode_state COMMAND test_decode_state)
 add_executable(test_tuya_codec test_tuya_codec.cpp)
 target_link_libraries(test_tuya_codec PRIVATE arctic_macon)
 add_test(NAME tuya_codec COMMAND test_tuya_codec)
+
+add_executable(test_macon_link test_macon_link.cpp)
+target_link_libraries(test_macon_link PRIVATE arctic_macon)
+add_test(NAME macon_link COMMAND test_macon_link)

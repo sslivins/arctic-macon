@@ -17,10 +17,51 @@ register table, and the fault-code decoding that were previously copy-pasted
 | `macon_registers.{h,cpp}` | Macon register numbering, per-register metadata (name/unit/scale/signed), value + bitmap formatting, `register_lookup()`. |
 | `macon_faults.{h,cpp}` | **Canonical fault table** — the five fault bitfield registers (2007, 2125, 2126, 2127, 2128) mapped bit-by-bit to their LCD/app codes, plus `macon_decode_faults()` returning active `{code, label, severity}`. |
 | `macon_advanced_params.{h,cpp}` | The installer-only **advanced ("Cn") parameter** table (`reg = 2000 + Cn`) with per-parameter valid range / default / unit from the vendor doc, plus `validate_advanced_write()` — a **reject-not-clamp** write guardrail. |
-| `macon_state.{h,cpp}` | **Domain decode layer** — `decode_state(base, regs, count, &MaconState)` turns a raw Macon register image into one authoritative decoded struct (mode, temps, electrical, run/flags, raw fault registers). Owns which register carries which field. Also `decode_mode()`/`MaconMode` for the reg2049 reversing-valve direction. |
+| `macon_state.{h,cpp}` | **Domain decode layer** — `decode_state(base, regs, count, &MaconState)` turns a raw Macon register image into one authoritative decoded struct (mode, temps, electrical, setpoints, run/flags, raw fault registers). Owns which register carries which field. Also `decode_mode()`/`MaconMode` for the reg2049 reversing-valve direction. |
+| `macon_link.{h,cpp}` | **Transaction layer (Layer 2)** — `MaconLink` performs synchronous setpoint write/read transactions (`set_cooling_setpoint()`, `set_hot_water_setpoint()`, `read_*_setpoint()`) over an injected `MaconTransport` the consumer implements on its UART. Still pure/host-testable. |
 
-All code is in namespace `arctic` (registers/faults/advanced-params) and
-`tuya_codec` (codec).
+All code is in namespace `arctic` (registers/faults/advanced-params/state/link)
+and `tuya_codec` (codec).
+
+See [`docs/REGISTERS.md`](docs/REGISTERS.md) for the canonical, ground-truthed
+register map and the fc=0x06 setpoint write protocol.
+
+## Setpoints
+
+The OEM controller (bus master) **sets** a setpoint by writing one signed byte
+(whole °C) to the setpoint's wire byte offset with an fc=0x06 command frame; the
+mainboard replies with a 9-byte ACK echoing `addr`+`count`. Confirmed live
+2026-07-09:
+
+| function | wire addr | reg | status |
+|----------|-----------|-----|--------|
+| Cooling setpoint | `0x0000` | `reg2093` | confirmed |
+| Aux / space-heating setpoint | `0x0001` | `reg2094` | **UNVERIFIED** (test unit lacks this stage) |
+| Hot-water setpoint (live) | `0x0002` | `reg2095` | confirmed |
+| Hot-water **ceiling** (Cn13, not a live setpoint) | — | `reg2012` | manual's "Highest setting temperature of hot water" (20~55 °C, default 50) |
+
+A non-exception ACK means accepted + applied, so the ACK is the authoritative
+confirmation. A NACK/exception frame has never been observed on this unit; its
+shape is unconfirmed (tracked as the `macon-nack-probe` follow-up).
+
+Prefer the intent-named `MaconLink` API over hand-encoding frames:
+
+```cpp
+class MyUart : public arctic::MaconTransport {
+    int write(const uint8_t *d, size_t n) override { /* uart_write_bytes ... */ }
+    int read(uint8_t *b, size_t n, int timeout_ms) override { /* uart_read_bytes ... */ }
+};
+
+MyUart uart;
+arctic::MaconLink link(uart);
+if (link.set_hot_water_setpoint(50) != arctic::MaconResult::Ok) { /* retry */ }
+
+int c;
+if (link.read_cooling_setpoint(&c) == arctic::MaconResult::Ok) { /* use c */ }
+```
+
+`arctic::encode_cooling_setpoint()` and `tuya_codec::encode_command()` remain
+available for consumers that own their own TX loop and only need the bytes.
 
 ## Advanced ("Cn") parameters — DANGER
 
@@ -58,7 +99,7 @@ idf_component_register(
 
 and `#include "tuya_codec.h"`, `#include "macon_registers.h"`,
 `#include "macon_faults.h"`, `#include "macon_advanced_params.h"`,
-`#include "macon_state.h"`.
+`#include "macon_state.h"`, `#include "macon_link.h"`.
 
 ## Division of labor (consumer vs. library)
 
