@@ -181,6 +181,43 @@ const char *operation_name(MaconOperation op) {
     }
 }
 
+PerformanceEstimate estimate_performance(const MaconState &s,
+                                         const PerformanceInputs &in) {
+    PerformanceEstimate est = {0, 0, false, s.mode};
+
+    // A meaningful estimate needs a running compressor, both water-loop temps,
+    // and the electrical power — all decoded from this state.
+    const bool running = s.compressor_freq_valid && s.compressor_freq > 0;
+    if (!running || !s.outlet_valid || !s.inlet_valid || !s.realtime_power_valid) {
+        return est;
+    }
+    // Consumer-supplied external inputs must be sane, and power/dT non-zero.
+    if (in.water_flow_lpm <= 0.0f || in.fluid_cp_j_per_kgK <= 0.0f ||
+        in.fluid_density_kg_per_l <= 0.0f || s.realtime_power_w == 0) {
+        return est;
+    }
+    const int dT_c_i = static_cast<int>(s.outlet_c) - static_cast<int>(s.inlet_c);
+    if (dT_c_i == 0) {
+        return est;  // whole-°C resolution: dT 0 is below the noise floor
+    }
+
+    // Water-side heat: Q = m_dot * cp * dT (dT in whole °C == K). Signed, so
+    // cooling (outlet < inlet) yields a negative thermal_w.
+    const float mdot_kg_s = in.water_flow_lpm * in.fluid_density_kg_per_l / 60.0f;
+    const float thermal   = mdot_kg_s * in.fluid_cp_j_per_kgK * static_cast<float>(dT_c_i);
+    est.thermal_w = static_cast<int32_t>(thermal);
+    est.direction = s.mode;
+
+    // COP is the magnitude of heat moved over electrical input.
+    const float cop = (thermal < 0.0f ? -thermal : thermal) /
+                      static_cast<float>(s.realtime_power_w);
+    float cop_x100f = cop * 100.0f + 0.5f;
+    if (cop_x100f > 65535.0f) cop_x100f = 65535.0f;   // clamp to uint16 on noise
+    est.cop_x100 = static_cast<uint16_t>(cop_x100f);
+    est.valid    = true;
+    return est;
+}
+
 size_t encode_cooling_setpoint(uint8_t *buf, size_t buf_capacity, int celsius) {
     // Clamp to a single signed byte (the wire carries one data byte).
     if (celsius < -128) celsius = -128;
