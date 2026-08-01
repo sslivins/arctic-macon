@@ -163,6 +163,48 @@ MaconOperation decode_operation(const MaconState &s);
 const char *operation_name(MaconOperation op);
 
 // ---------------------------------------------------------------------------
+// Performance estimate (thermal output + COP)
+// ---------------------------------------------------------------------------
+//
+// COP = heat moved across the water side / electrical power drawn. The library
+// can decode the electrical power (reg2114) and the water in/out temperatures,
+// but the water-side heat transfer also needs the WATER FLOW RATE — which is a
+// property of the external circulator pump, NOT anything the Macon mainboard
+// reports. This unit has only a flow *switch* (P01 protection), never a flow
+// meter, so the flow (and the fluid's heat capacity/density, which change with
+// glycol) must be supplied by the consumer as an ESTIMATE.
+//
+// This keeps the physics/formula in one authoritative place so every consumer
+// (controller, sniffer, simulator) produces the SAME COP for the same assumed
+// inputs, while being explicit that flow is an outside estimate.
+
+struct PerformanceInputs {
+    float water_flow_lpm;         // external pump flow (L/min) — estimated, not measured
+    float fluid_cp_j_per_kgK;     // specific heat: ~4186 water, lower for glycol
+    float fluid_density_kg_per_l; // density: ~1.00 water, ~1.03 for glycol mix
+};
+
+struct PerformanceEstimate {
+    int32_t   thermal_w;   // water-side heat: + = heating (delivered), - = cooling (removed)
+    uint16_t  cop_x100;    // COP x100 (e.g. 392 = 3.92); 0 when !valid
+    bool      valid;       // false if compressor off / temps absent / power 0 / dT 0
+    MaconMode direction;   // heating vs cooling (from reversing valve)
+};
+
+/// Estimate water-side thermal output and COP from a decoded state plus the
+/// consumer-supplied (estimated) external water-loop inputs.
+///
+/// Q = m_dot * cp * dT, with m_dot = flow_lpm * density / 60 (kg/s) and
+/// dT = outlet_c - inlet_c (whole °C == K). In cooling, dT is negative so
+/// thermal_w is negative; COP is reported as the magnitude |Q| / power.
+///
+/// Returns valid=false (and zeros) unless the compressor is running, both water
+/// temps and real-time power were decoded, the supplied inputs are positive,
+/// power is non-zero, and dT is non-zero.
+PerformanceEstimate estimate_performance(const MaconState &s,
+                                         const PerformanceInputs &in);
+
+// ---------------------------------------------------------------------------
 // Setpoint write (controller -> unit)
 // ---------------------------------------------------------------------------
 //

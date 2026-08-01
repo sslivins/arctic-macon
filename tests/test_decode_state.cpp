@@ -198,6 +198,67 @@ int main() {
         CHECK(encode_cooling_setpoint(buf, 4, 24) == 0);
     }
 
+    // --- estimate_performance ----------------------------------------------
+    {
+        const PerformanceInputs water40 = {
+            /*water_flow_lpm=*/40.0f, /*cp=*/4186.0f, /*density=*/1.00f };
+
+        // Heating: outlet 45, inlet 38 -> dT +7 °C; power 3900 W.
+        uint16_t r[COUNT];
+        std::memset(r, 0, sizeof(r));
+        set_reg(r, REG_OPERATING_MODE, 0);       // heating
+        set_reg(r, REG_COMPRESSOR_FREQ, 55);     // running
+        set_reg(r, REG_OUTLET_WATER_TEMP, 45);
+        set_reg(r, REG_INLET_WATER_TEMP, 38);
+        set_reg(r, REG_REALTIME_POWER, 39);      // x100 => 3900 W
+        MaconState h;
+        decode_state(BASE, r, COUNT, &h);
+        PerformanceEstimate eh = estimate_performance(h, water40);
+        CHECK(eh.valid);
+        CHECK(eh.direction == MaconMode::Heating);
+        // Q = (40/60)*4186*7 = 19534.7 W
+        CHECK(eh.thermal_w > 19500 && eh.thermal_w < 19570);
+        // COP = 19534.7 / 3900 = 5.01
+        CHECK(eh.cop_x100 > 495 && eh.cop_x100 < 505);
+
+        // Cooling: outlet 12, inlet 14 -> dT -2 °C; power 1400 W.
+        std::memset(r, 0, sizeof(r));
+        set_reg(r, REG_OPERATING_MODE, 4);       // cooling
+        set_reg(r, REG_COMPRESSOR_FREQ, 30);     // running
+        set_reg(r, REG_OUTLET_WATER_TEMP, 12);
+        set_reg(r, REG_INLET_WATER_TEMP, 14);
+        set_reg(r, REG_REALTIME_POWER, 14);      // x100 => 1400 W
+        MaconState c;
+        decode_state(BASE, r, COUNT, &c);
+        PerformanceEstimate ec = estimate_performance(c, water40);
+        CHECK(ec.valid);
+        CHECK(ec.direction == MaconMode::Cooling);
+        CHECK(ec.thermal_w < 0);                 // heat removed -> negative
+        // |Q| = (40/60)*4186*2 = 5581.3 W ; COP = 5581.3/1400 = 3.99
+        CHECK(ec.thermal_w > -5620 && ec.thermal_w < -5540);
+        CHECK(ec.cop_x100 > 393 && ec.cop_x100 < 405);
+
+        // Not running -> invalid.
+        set_reg(r, REG_COMPRESSOR_FREQ, 0);
+        MaconState off;
+        decode_state(BASE, r, COUNT, &off);
+        CHECK(!estimate_performance(off, water40).valid);
+
+        // dT == 0 -> invalid (below whole-°C noise floor).
+        std::memset(r, 0, sizeof(r));
+        set_reg(r, REG_COMPRESSOR_FREQ, 40);
+        set_reg(r, REG_OUTLET_WATER_TEMP, 30);
+        set_reg(r, REG_INLET_WATER_TEMP, 30);
+        set_reg(r, REG_REALTIME_POWER, 20);
+        MaconState flat;
+        decode_state(BASE, r, COUNT, &flat);
+        CHECK(!estimate_performance(flat, water40).valid);
+
+        // Zero/negative flow input -> invalid.
+        const PerformanceInputs noflow = { 0.0f, 4186.0f, 1.0f };
+        CHECK(!estimate_performance(h, noflow).valid);
+    }
+
     // --- null-safety -------------------------------------------------------
     DecodeStatus dz = decode_state(BASE, nullptr, 0, &ss);
     CHECK(dz.registers_present == 0);
