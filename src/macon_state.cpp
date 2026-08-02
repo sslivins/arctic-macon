@@ -106,7 +106,7 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     out->aux_heat_setpoint =
         s8(val(REG_AUX_HEAT_SETPOINT, &out->aux_heat_setpoint_valid));   // reg2094 wire 0x0001 (UNVERIFIED)
     out->hot_water_ceiling =
-        static_cast<int16_t>(val(REG_HOT_WATER_CEILING, &out->hot_water_ceiling_valid)); // reg2012 Cn13 ceiling
+        static_cast<int16_t>(val(REG_HOT_WATER_CEILING, &out->hot_water_ceiling_valid)); // reg2012 AP13 ceiling
 
     // --- electrical --------------------------------------------------------
     out->ac_current      = val(REG_AC_CURRENT, &out->ac_current_valid);   // reg2000 A4
@@ -226,6 +226,45 @@ size_t encode_cooling_setpoint(uint8_t *buf, size_t buf_capacity, int celsius) {
     // Cooling setpoint lives at wire addr 0x0000, count 1 (see reg2093).
     return tuya_codec::encode_command(buf, buf_capacity,
                                       /*field_a=*/0x0000, /*count=*/1, &data);
+}
+
+// ---------------------------------------------------------------------------
+// Setpoint limits
+// ---------------------------------------------------------------------------
+namespace {
+// Library-owned static defaults. Cooling has no unit-reported limit register,
+// so these are authoritative. Hot-water's max is refined from the live ceiling
+// (reg2012) when available (see setpoint_limits()).
+constexpr int kCoolingMin = 10, kCoolingMax = 30;
+constexpr int kHeatingMin = 20, kHeatingMax = 60;
+constexpr int kHotWaterMin = 30, kHotWaterMax = 60;
+}  // namespace
+
+SetpointLimits setpoint_limits(SetpointKind kind, const MaconState *state) {
+    switch (kind) {
+        case SetpointKind::Cooling:
+            return {kCoolingMin, kCoolingMax, false};
+        case SetpointKind::Heating:
+            return {kHeatingMin, kHeatingMax, false};
+        case SetpointKind::HotWater: {
+            // Prefer the unit's live ceiling (reg2012 AP13) when present and
+            // sane (above the min), else the library default.
+            if (state && state->hot_water_ceiling_valid &&
+                state->hot_water_ceiling > kHotWaterMin) {
+                return {kHotWaterMin, state->hot_water_ceiling, true};
+            }
+            return {kHotWaterMin, kHotWaterMax, false};
+        }
+    }
+    // Unreachable; conservative fallback.
+    return {kCoolingMin, kCoolingMax, false};
+}
+
+int clamp_setpoint(SetpointKind kind, int celsius, const MaconState *state) {
+    const SetpointLimits lim = setpoint_limits(kind, state);
+    if (celsius < lim.min_c) return lim.min_c;
+    if (celsius > lim.max_c) return lim.max_c;
+    return celsius;
 }
 
 }  // namespace arctic

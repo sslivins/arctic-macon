@@ -25,12 +25,14 @@ MaconLink::MaconLink(MaconTransport &transport, int response_timeout_ms)
 // --- public setpoint API ---------------------------------------------------
 
 MaconResult MaconLink::set_cooling_setpoint(int celsius) {
-    // Cooling setpoint lives at wire addr 0x0000 (reg2093).
+    // Cooling setpoint lives at wire addr 0x0000 (reg2093). MaconLink is a pure
+    // transport: callers clamp to the library-owned range (clamp_setpoint) up
+    // front; this writes exactly what it is given.
     return write_setpoint(0x0000, celsius);
 }
 
 MaconResult MaconLink::set_hot_water_setpoint(int celsius) {
-    // Hot-water setpoint lives at wire addr 0x0002 (reg2095).
+    // Hot-water setpoint lives at wire addr 0x0002 (reg2095). See note above.
     return write_setpoint(0x0002, celsius);
 }
 

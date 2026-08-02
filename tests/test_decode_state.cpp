@@ -55,7 +55,7 @@ int main() {
     set_reg(regs, REG_INLET_WATER_TEMP, 38);
     set_reg(regs, REG_OUTDOOR_AMBIENT_TEMP, (uint16_t)(uint8_t)(int8_t)-7); // sub-zero
     set_reg(regs, REG_DISCHARGE_TEMP, 85);
-    set_reg(regs, REG_HOT_WATER_CEILING, 50);   // reg2012 Cn13 ceiling
+    set_reg(regs, REG_HOT_WATER_CEILING, 50);   // reg2012 AP13 ceiling
     set_reg(regs, REG_COOLING_SETPOINT, 24);    // reg2093 cooling setpoint
     set_reg(regs, REG_AUX_HEAT_SETPOINT, 40);   // reg2094 aux/heating (unverified)
     set_reg(regs, REG_HOT_WATER_SETPOINT, 38);  // reg2095 live hot-water setpoint
@@ -257,6 +257,33 @@ int main() {
         // Zero/negative flow input -> invalid.
         const PerformanceInputs noflow = { 0.0f, 4186.0f, 1.0f };
         CHECK(!estimate_performance(h, noflow).valid);
+    }
+
+    // --- setpoint limits ---------------------------------------------------
+    {
+        // Cooling: library-owned static range, never from the unit.
+        SetpointLimits cl = setpoint_limits(SetpointKind::Cooling);
+        CHECK(cl.min_c == 10 && cl.max_c == 30 && !cl.max_from_unit);
+        CHECK(clamp_setpoint(SetpointKind::Cooling, 5)  == 10);   // below min -> min
+        CHECK(clamp_setpoint(SetpointKind::Cooling, 40) == 30);   // above max -> max
+        CHECK(clamp_setpoint(SetpointKind::Cooling, 22) == 22);   // in range -> unchanged
+
+        // Heating: static range.
+        SetpointLimits hl = setpoint_limits(SetpointKind::Heating);
+        CHECK(hl.min_c == 20 && hl.max_c == 60 && !hl.max_from_unit);
+
+        // Hot water, no state -> static default max.
+        SetpointLimits wl = setpoint_limits(SetpointKind::HotWater);
+        CHECK(wl.min_c == 30 && wl.max_c == 60 && !wl.max_from_unit);
+
+        // Hot water WITH a live ceiling (reg2012) -> max tracks the unit.
+        uint16_t rr[COUNT] = {0};
+        set_reg(rr, REG_HOT_WATER_CEILING, 50);
+        MaconState wc;
+        decode_state(BASE, rr, COUNT, &wc);
+        SetpointLimits wcl = setpoint_limits(SetpointKind::HotWater, &wc);
+        CHECK(wcl.min_c == 30 && wcl.max_c == 50 && wcl.max_from_unit);
+        CHECK(clamp_setpoint(SetpointKind::HotWater, 55, &wc) == 50);  // clamped to live ceiling
     }
 
     // --- null-safety -------------------------------------------------------
