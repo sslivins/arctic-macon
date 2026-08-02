@@ -28,11 +28,11 @@ constexpr uint16_t REG_DC_BUS_VOLTAGE       = 2001;  // A7  DC bus voltage (x10 
 constexpr uint16_t REG_DC_MOTOR_SPEED       = 2003;  // A10 DC (fan) motor speed
 constexpr uint16_t REG_FAULT_RUNSTATE       = 2007;  // fault bitfield + run indicator
 constexpr uint16_t REG_WATER_TANK_TEMP      = 2008;  // o1  water tank temp
-// Cn13 "Highest setting temperature of hot water, heating mode" (20~55 °C,
+// AP13 "Highest setting temperature of hot water, heating mode" (20~55 °C,
 // default 50). This is the CEILING/limit the mainboard enforces, NOT the live
 // user setpoint (that is REG_HOT_WATER_SETPOINT=2095). Confirmed: dialing the
 // display setpoint down did not move reg2012; it stayed at its 50 °C ceiling.
-constexpr uint16_t REG_HOT_WATER_CEILING    = 2012;  // Cn13 max hot-water temp (ceiling, not live setpoint)
+constexpr uint16_t REG_HOT_WATER_CEILING    = 2012;  // AP13 max hot-water temp (ceiling, not live setpoint)
 
 // Operating direction, set by the reversing valve (NOT a user-selectable menu
 // mode). Runtime telemetry, not static config: observed flipping 0->4 live when
@@ -56,7 +56,7 @@ constexpr uint16_t REG_AUX_HEAT_SETPOINT    = 2094;  // wire addr 0x0001; aux/ba
 // wire addr 0x0002. Live hot-water setpoint. Confirmed 2026-07-09: dialing the
 // hot-water setpoint to 38 °C moved reg2095 0x32(50) -> 0x26(38) and emitted an
 // fc=0x06 write to wire addr 0x0002. This is the live target, distinct from the
-// reg2012 (Cn13) ceiling.
+// reg2012 (AP13) ceiling.
 constexpr uint16_t REG_HOT_WATER_SETPOINT   = 2095;  // wire addr 0x0002; live hot-water setpoint (confirmed)
 constexpr uint16_t REG_AC_VOLTAGE           = 2101;  // A13 AC input voltage (x10 = V)
 constexpr uint16_t REG_MAIN_EEV             = 2104;  // A5  main elec. expansion valve

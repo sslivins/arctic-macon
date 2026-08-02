@@ -31,7 +31,7 @@ static const RegEntry s_registers[] = {
     { 2003, { "DC Motor Speed",         nullptr, 1.0f,   false } },  // A10
     { 2007, { "Fault(RunState)",       nullptr, 1.0f,   false } },  // bitfield
     { 2008, { "Water Tank Temp",        "°C",    1.0f,   true  } },  // o1
-    { 2012, { "Hot-Water Ceiling",      "°C",    1.0f,   false } },  // Cn13 max hot-water temp (ceiling)
+    { 2012, { "Hot-Water Ceiling",      "°C",    1.0f,   false } },  // AP13 max hot-water temp (ceiling)
 
     // "Telemetry" window (base 2093)
     { 2093, { "Cooling Setpoint",       "°C",    1.0f,   true  } },  // wire 0x0000 (controller-written)

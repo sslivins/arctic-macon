@@ -88,7 +88,7 @@ struct MaconState {
     int16_t cooling_setpoint;   bool cooling_setpoint_valid;    // reg2093 wire 0x0000 (controller-written)
     int16_t hot_water_setpoint; bool hot_water_setpoint_valid;  // reg2095 wire 0x0002 (controller-written, live)
     int16_t aux_heat_setpoint;  bool aux_heat_setpoint_valid;   // reg2094 wire 0x0001 (UNVERIFIED aux/heating)
-    int16_t hot_water_ceiling;  bool hot_water_ceiling_valid;   // reg2012 Cn13 max hot-water temp (ceiling, not live)
+    int16_t hot_water_ceiling;  bool hot_water_ceiling_valid;   // reg2012 AP13 max hot-water temp (ceiling, not live)
 
     // Electrical.
     uint16_t ac_current;        bool ac_current_valid;      // reg2000 A4
@@ -218,6 +218,11 @@ PerformanceEstimate estimate_performance(const MaconState &s,
 // WARNING: this write path is byte-exact-verified against the live capture but
 // has NOT been exercised on real hardware (our sniffer is listen-only). Treat
 // as unvalidated until proven on a device that can transmit.
+//
+// UPDATE 2026-08-01: VALIDATED on real hardware. With the OEM controller
+// disconnected and the Tab5 as sole active master, cooling-setpoint writes were
+// ACKed by the mainboard and confirmed applied by an independent listen-only
+// sniffer. The write path (MaconLink -> fc=0x06 -> ACK) works end-to-end.
 
 /// Encode a cooling-setpoint write command frame (fc=0x06) ready to transmit
 /// to the unit. `celsius` is the whole-°C setpoint (clamped to int8 range).
@@ -225,5 +230,35 @@ PerformanceEstimate estimate_performance(const MaconState &s,
 /// bytes, or 0 on error (null buf / buffer too small). The produced frame is
 /// `55 AA F0 06 00 00 00 01 <celsius> <chk>` (10 bytes).
 size_t encode_cooling_setpoint(uint8_t *buf, size_t buf_capacity, int celsius);
+
+// ---------------------------------------------------------------------------
+// Setpoint limits (library-owned min/max the consumer's UI enforces & displays)
+// ---------------------------------------------------------------------------
+//
+// The library is the single source of truth for the allowed setpoint range, so
+// every consumer (Tab5 UI, web UI, sniffer) constrains and displays the SAME
+// bounds instead of each hardcoding its own. The mainboard itself enforces
+// nothing (confirmed live 2026-08-01: it ACKed a cooling setpoint of 11 °C,
+// below the OEM HMI's own 12 °C floor), so these guardrails are ours to own.
+//
+// Cooling has no unit-reported limit register, so the library owns fixed
+// defaults. Hot-water's max tracks the unit's live ceiling (reg2012 AP13) when
+// present, falling back to a default otherwise.
+
+enum class SetpointKind : uint8_t { Cooling, Heating, HotWater };
+
+struct SetpointLimits {
+    int  min_c;          // inclusive lower bound (whole °C)
+    int  max_c;          // inclusive upper bound (whole °C)
+    bool max_from_unit;  // true if max_c came from a live register, false = library default
+};
+
+/// Effective allowed range for `kind`. Pass a decoded `state` to let the max
+/// track a live limit register (currently hot-water ceiling reg2012); pass
+/// nullptr for the pure library defaults.
+SetpointLimits setpoint_limits(SetpointKind kind, const MaconState *state = nullptr);
+
+/// Clamp `celsius` to the effective range for `kind` (see setpoint_limits()).
+int clamp_setpoint(SetpointKind kind, int celsius, const MaconState *state = nullptr);
 
 }  // namespace arctic
