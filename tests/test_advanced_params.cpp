@@ -99,6 +99,20 @@ int main() {
     // Out-of-range still reported before the lock.
     CHECK(validate_advanced_write(48, 2) == AdvWriteResult::OUT_OF_RANGE);
 
+    // --- every param is localizable: all rows carry stable name/detail keys --
+    // Phase 3 extended the msg_id scheme from the K-ratio block to the entire
+    // table, so no param name/detail is left un-keyed for translation.
+    CHECK(advanced_param_count() > 0);
+    for (size_t i = 0; i < advanced_param_count(); ++i) {
+        const AdvancedParam *p = advanced_param_at(i);
+        CHECK(p != nullptr);
+        CHECK(p->name_msg_id != nullptr && p->name_msg_id[0] != '\0');
+        CHECK(p->detail_msg_id != nullptr && p->detail_msg_id[0] != '\0');
+    }
+    // Spot-check a couple of the newly-keyed non-K-ratio params.
+    CHECK(std::strcmp(advanced_param_lookup(13)->name_msg_id, "ap.max_hw_setpoint.name") == 0);
+    CHECK(std::strcmp(advanced_param_lookup(47)->detail_msg_id, "ap.water_system_cleaning.detail") == 0);
+
     // --- enum (K-ratio) params: verified + writable ------------------------
     // AP14 valid readings {0,1,2,4,8,12,16,20}, reg2111 confirmed.
     CHECK(validate_advanced_write(14, 8) == AdvWriteResult::OK);
