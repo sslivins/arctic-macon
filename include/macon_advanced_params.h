@@ -62,10 +62,54 @@ uint16_t advanced_register_address(uint8_t ap);
 // Parameter metadata
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Enum display options — locale-INDEPENDENT presentation metadata.
+//
+// Some params (the K-ratio block AP14-20) carry a discrete set of cryptic
+// RS485 codes whose *meaning* is vendor semantics but whose *wording* is
+// presentation.  This struct is the boundary contract between the library and
+// any UI:
+//   * `wire`    — the ONLY value that ever hits the bus (e.g. 12).
+//   * `label`   — the vendor's language-NEUTRAL display value ("3", "0.25").
+//   * `msg_id`  — a stable, locale-independent key the UI feeds to its own i18n
+//                 catalog (e.g. "kratio_reduce" / "kratio_none").  The library
+//                 owns identity; the UI owns translation.
+//   * `arg_a`/`arg_b` — structured numeric args for the message (e.g. steps,
+//                 Hz).  Numbers cross the boundary; prose never does.
+//   * `en_default` — canonical English rendering, authored HERE as the single
+//                 source of truth AND the fallback a UI shows when it has no
+//                 translation for `msg_id`.
+// Translation happens OUTSIDE the library (device i18n / web t()), keyed by
+// `msg_id`, falling back to `en_default`.
+// ---------------------------------------------------------------------------
+struct AdvEnumOption {
+    int16_t     wire;        // RS485 code on the bus
+    const char *label;       // Language-neutral display value ("3", "0.25", "0")
+    const char *msg_id;      // Stable i18n key for the UI's own catalog
+    int16_t     arg_a;       // First message arg (K-ratio: EEV steps to reduce)
+    int16_t     arg_b;       // Second message arg (K-ratio: per this many Hz)
+    const char *en_default;  // Canonical English + fallback when msg_id untranslated
+};
+
 struct AdvancedParam {
     uint8_t        ap;               // AP parameter number
     uint16_t       reg;             // Confirmed wire register, or ADV_REG_UNKNOWN (0)
-    const char    *name;             // Short description
+    const char    *name;             // Short title ("Frequency Ratio K1")
+    const char    *detail;           // Full human-readable explanation of what the
+                                     // parameter does and when it applies.  English,
+                                     // shown verbatim like `name` (the single source
+                                     // of truth); nullptr if none.  UIs may localize
+                                     // later via the same en_default+msg_id pattern
+                                     // used for enum options.
+                                     //
+                                     // Temperatures are NOT baked in as literals so
+                                     // the text stays unit-agnostic.  Instead embed a
+                                     // token `{T:<celsius>}` (e.g. "{T:-9}", "{T:43}")
+                                     // giving the canonical Celsius value.  The UI
+                                     // substitutes each token with the value converted
+                                     // to the user's chosen unit plus the unit suffix
+                                     // (e.g. "-9°C" or "16°F").  Tokens are language-
+                                     // independent, so translations reuse them verbatim.
     const char    *category;         // Display grouping (see advanced_category_at)
     int16_t        min_val;          // Inclusive lower bound (engineering units)
     int16_t        max_val;          // Inclusive upper bound
@@ -80,6 +124,15 @@ struct AdvancedParam {
     bool           is_trigger;       // Momentary/self-clearing command register:
                                      // UI renders a button that writes the trigger
                                      // value (does not latch a stored value)
+    const AdvEnumOption *enum_opts;  // If non-null: per-code display metadata,
+                                     // aligned 1:1 with enum_vals (same wire order)
+    uint8_t        enum_opt_count;   // Number of entries in enum_opts
+    const char    *name_msg_id;      // Stable i18n key for `name`.  UIs translate
+                                     // via this key, falling back to `name` (the
+                                     // English source of truth).  nullptr => the
+                                     // name is English-only (no translation key).
+    const char    *detail_msg_id;    // Stable i18n key for `detail`, same pattern.
+                                     // nullptr => detail is English-only.
 };
 
 /// Result of a validated write attempt / plan.
@@ -143,6 +196,22 @@ size_t advanced_param_count();
 
 /// Table entry by index [0, advanced_param_count()). Returns nullptr if OOB.
 const AdvancedParam *advanced_param_at(size_t index);
+
+// ---------------------------------------------------------------------------
+// Enum display options — accessors over AdvancedParam::enum_opts.
+// The wire code is the only value that crosses the bus; UIs render `label`
+// and localize `msg_id` (falling back to `en_default`) using `arg_a`/`arg_b`.
+// ---------------------------------------------------------------------------
+
+/// Number of display options for AP `ap` (0 if the param has none).
+size_t advanced_enum_option_count(uint8_t ap);
+
+/// Display option at `index` for AP `ap`, or nullptr if OOB / no options.
+const AdvEnumOption *advanced_enum_option_at(uint8_t ap, size_t index);
+
+/// Display option whose wire code == `wire` for AP `ap`, or nullptr if the
+/// param has no options or no option matches.
+const AdvEnumOption *advanced_enum_option_for_wire(uint8_t ap, int16_t wire);
 
 // ---------------------------------------------------------------------------
 // Categories — canonical display grouping/ordering, shared by every consumer
