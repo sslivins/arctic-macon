@@ -105,6 +105,58 @@ int main() {
     CHECK(validate_advanced_write(14, 3) == AdvWriteResult::NOT_IN_ENUM);
     CHECK(validate_advanced_write(14, 20) == AdvWriteResult::OK);
 
+    // --- enum display options (locale-independent presentation metadata) ----
+    // Every K-ratio param (AP14..AP20) shares the same 8 options, aligned 1:1
+    // with its enum_vals; the wire code is the ONLY thing that hits the bus.
+    for (uint8_t ap = 14; ap <= 20; ++ap) {
+        const AdvancedParam *p = advanced_param_lookup(ap);
+        CHECK(p != nullptr);
+        // Every K-ratio param carries stable i18n keys for its localizable
+        // name/detail; the library owns identity, UIs own translation and fall
+        // back to the English `name`/`detail` when a key is untranslated.
+        CHECK(p->name_msg_id != nullptr && p->name_msg_id[0] != '\0');
+        CHECK(p->detail_msg_id != nullptr && p->detail_msg_id[0] != '\0');
+        CHECK(advanced_enum_option_count(ap) == p->enum_count);
+        for (uint8_t i = 0; i < p->enum_count; ++i) {
+            const AdvEnumOption *opt = advanced_enum_option_at(ap, i);
+            CHECK(opt != nullptr);
+            // Options must match the validation enum, in the same order.
+            CHECK(opt->wire == static_cast<int16_t>(p->enum_vals[i]));
+            CHECK(opt->label != nullptr && opt->label[0] != '\0');
+            CHECK(opt->msg_id != nullptr && opt->msg_id[0] != '\0');
+            CHECK(opt->en_default != nullptr && opt->en_default[0] != '\0');
+        }
+    }
+    // Reverse lookup by wire code returns the human meaning; the library owns
+    // "12 == 6-step per 1 Hz" so no UI ever hardcodes it.
+    const AdvEnumOption *o12 = advanced_enum_option_for_wire(18, 12);
+    CHECK(o12 != nullptr);
+    CHECK(std::strcmp(o12->label, "3") == 0);
+    CHECK(std::strcmp(o12->msg_id, "kratio_reduce") == 0);
+    CHECK(o12->arg_a == 6 && o12->arg_b == 1);
+    const AdvEnumOption *o0 = advanced_enum_option_for_wire(18, 0);
+    CHECK(o0 != nullptr && std::strcmp(o0->msg_id, "kratio_none") == 0);
+    CHECK(std::strcmp(o0->label, "0") == 0);
+    // AP18 is K5: its localizable name/detail keys follow the stable scheme.
+    CHECK(std::strcmp(advanced_param_lookup(18)->name_msg_id, "ap.freq_ratio_k5.name") == 0);
+    CHECK(std::strcmp(advanced_param_lookup(18)->detail_msg_id, "ap.freq_ratio_k5.detail") == 0);
+    // Temperature thresholds in K-ratio details are unit-agnostic {T:<c>} tokens
+    // (canonical Celsius); the UI converts+labels them. The heating/hot-water
+    // params (K1..K6) carry a threshold window; K7 (cooling) carries none.
+    for (uint8_t ap = 14; ap <= 19; ++ap) {
+        CHECK(std::strstr(advanced_param_lookup(ap)->detail, "{T:") != nullptr);
+    }
+    CHECK(std::strstr(advanced_param_lookup(20)->detail, "{T:") == nullptr);
+    CHECK(std::strstr(advanced_param_lookup(18)->detail, "{T:-9}") != nullptr);
+    CHECK(std::strstr(advanced_param_lookup(18)->detail, "{T:18}") != nullptr);
+    CHECK(std::strstr(advanced_param_lookup(18)->detail, "{T:43}") != nullptr);
+    // A wire code that is not a valid reading has no option.
+    CHECK(advanced_enum_option_for_wire(18, 3) == nullptr);
+    // Non-enum params expose no options.
+    CHECK(advanced_enum_option_count(13) == 0);
+    CHECK(advanced_enum_option_at(13, 0) == nullptr);
+    CHECK(advanced_enum_option_for_wire(13, 0) == nullptr);
+
     // --- write-plan builder ------------------------------------------------
     {
         AdvWritePlan plan{0xFFFF, 0xFFFF};
@@ -144,6 +196,9 @@ int main() {
         CHECK(p->ap >= ADV_AP_MIN && p->ap <= ADV_AP_MAX);
         CHECK(p->min_val <= p->max_val);
         CHECK(p->default_val >= p->min_val && p->default_val <= p->max_val);
+        // Every param carries a clean name and a non-empty detail explanation.
+        CHECK(p->name != nullptr && p->name[0] != '\0');
+        CHECK(p->detail != nullptr && p->detail[0] != '\0');
     }
 
     // --- categories --------------------------------------------------------
