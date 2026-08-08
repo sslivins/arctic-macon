@@ -133,6 +133,8 @@ struct AdvancedParam {
                                      // name is English-only (no translation key).
     const char    *detail_msg_id;    // Stable i18n key for `detail`, same pattern.
                                      // nullptr => detail is English-only.
+    int16_t        display_multiplier = 1; // Display value = wire value * multiplier.
+    const char    *display_unit = nullptr; // Optional user-facing replacement for unit.
 };
 
 /// Result of a validated write attempt / plan.
@@ -181,6 +183,19 @@ struct AdvWritePlan {
 /// may be null (acts as a pure validity check).  Returns the same result as
 /// validate_advanced_write().
 AdvWriteResult advanced_prepare_write(uint8_t ap, int16_t value, AdvWritePlan *out);
+
+/// Convert between the raw AP engineering value and the user-facing value.
+/// Most params use multiplier 1. Scaled params such as AP28 expose minutes
+/// directly while retaining the vendor's 10-minute wire unit internally.
+int16_t advanced_display_value(uint8_t ap, int16_t wire_value);
+int16_t advanced_display_step(uint8_t ap);
+const char *advanced_display_unit(uint8_t ap);
+
+/// Build a write plan from a user-facing display value. Rejects values that are
+/// not exactly representable by the parameter's display multiplier.
+AdvWriteResult advanced_prepare_display_write(uint8_t ap,
+                                              int16_t display_value,
+                                              AdvWritePlan *out);
 
 /// Decode a raw 16-bit register value into an engineering value for AP `ap`.
 /// For is_signed params the low byte is sign-extended from 8 bits (e.g. raw
