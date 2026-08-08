@@ -67,7 +67,8 @@ static constexpr const char *CAT_MANUAL   = "Manual/Test";
 //
 // Fields: { ap, reg, name, detail, category, min, max, default, unit, is_signed,
 //           needs_sim_confirm, enum_vals, enum_count, read_only, is_trigger,
-//           enum_opts, enum_opt_count, name_msg_id, detail_msg_id }
+//           enum_opts, enum_opt_count, name_msg_id, detail_msg_id,
+//           display_multiplier, display_unit }
 static const AdvancedParam s_advanced[] = {
     { 13, 2012, "Max Hot-Water Setpoint",
       "Highest water temperature the unit will heat to in heating / hot-water mode.",
@@ -106,8 +107,8 @@ static const AdvancedParam s_advanced[] = {
       "Frequency step the compressor rises by while fast-heat mode is active.",
       CAT_FREQ,      1,  20,   5, "Hz",     false, false, nullptr, 0, false, false, nullptr, 0, "ap.fast_heat_freq_increase.name", "ap.fast_heat_freq_increase.detail" },  // write-verified reg2026
     { 28, 2027, "Auto-Mode Switch Wait Time",
-      "Automatic mode: time to wait before switching between heating and cooling (in units of 10 minutes).",
-      CAT_AUTO,      0,  99,   3, "×10min", false, false, nullptr, 0, false, false, nullptr, 0, "ap.auto_mode_switch_wait.name", "ap.auto_mode_switch_wait.detail" },  // write-verified reg2027
+      "Automatic mode: time to wait before switching between heating and cooling.",
+      CAT_AUTO,      0,  99,   3, "×10min", false, false, nullptr, 0, false, false, nullptr, 0, "ap.auto_mode_switch_wait.name", "ap.auto_mode_switch_wait.detail", 10, "min" },  // write-verified reg2027
     { 29, 2030, "Compressor Run Time Before Defrost",
       "Cumulative compressor running time that must elapse before a defrost cycle is allowed.",
       CAT_DEFROST,   0,  90,  45, "min",    false, false, nullptr, 0, false, false, nullptr, 0, "ap.comp_runtime_before_defrost.name", "ap.comp_runtime_before_defrost.detail" },  // write-verified reg2030; doc Item29 (0~90min, def 45)
@@ -258,6 +259,37 @@ AdvWriteResult advanced_prepare_write(uint8_t ap, int16_t value, AdvWritePlan *o
         }
     }
     return AdvWriteResult::OK;
+}
+
+int16_t advanced_display_value(uint8_t ap, int16_t wire_value) {
+    const AdvancedParam *p = advanced_param_lookup(ap);
+    int16_t multiplier = (p && p->display_multiplier > 0)
+        ? p->display_multiplier : 1;
+    return static_cast<int16_t>(wire_value * multiplier);
+}
+
+int16_t advanced_display_step(uint8_t ap) {
+    const AdvancedParam *p = advanced_param_lookup(ap);
+    return (p && p->display_multiplier > 0) ? p->display_multiplier : 1;
+}
+
+const char *advanced_display_unit(uint8_t ap) {
+    const AdvancedParam *p = advanced_param_lookup(ap);
+    if (!p) return nullptr;
+    return p->display_unit ? p->display_unit : p->unit;
+}
+
+AdvWriteResult advanced_prepare_display_write(uint8_t ap,
+                                              int16_t display_value,
+                                              AdvWritePlan *out) {
+    const AdvancedParam *p = advanced_param_lookup(ap);
+    if (!p) return AdvWriteResult::UNKNOWN_PARAM;
+
+    int16_t multiplier = p->display_multiplier > 0 ? p->display_multiplier : 1;
+    if ((display_value % multiplier) != 0) {
+        return AdvWriteResult::OUT_OF_RANGE;
+    }
+    return advanced_prepare_write(ap, display_value / multiplier, out);
 }
 
 int16_t advanced_decode_raw(uint8_t ap, uint16_t raw) {

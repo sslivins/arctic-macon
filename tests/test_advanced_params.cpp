@@ -66,6 +66,22 @@ int main() {
     CHECK(validate_advanced_write(38, -30) == AdvWriteResult::OK);
     CHECK(validate_advanced_write(38, 5) == AdvWriteResult::OUT_OF_RANGE);
 
+    // AP28 exposes minutes to UIs while retaining 10-minute wire units.
+    CHECK(advanced_display_value(28, 3) == 30);
+    CHECK(advanced_display_step(28) == 10);
+    CHECK(std::strcmp(advanced_display_unit(28), "min") == 0);
+    {
+        AdvWritePlan plan{0xFFFF, 0xFFFF};
+        CHECK(advanced_prepare_display_write(28, 30, &plan) == AdvWriteResult::OK);
+        CHECK(plan.reg == 2027);
+        CHECK(plan.raw == 3);
+        CHECK(advanced_prepare_display_write(28, 35, &plan) ==
+              AdvWriteResult::OUT_OF_RANGE);
+    }
+    CHECK(advanced_display_value(29, 45) == 45);
+    CHECK(advanced_display_step(29) == 1);
+    CHECK(std::strcmp(advanced_display_unit(29), "min") == 0);
+
     // --- read-only param (AP41): reg known but writes refused --------------
     CHECK(advanced_param_reg_known(41));
     CHECK(advanced_register_address(41) == 2041);
