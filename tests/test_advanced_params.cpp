@@ -118,6 +118,9 @@ int main() {
     CHECK(validate_advanced_write(14, 8) == AdvWriteResult::OK);
     CHECK(validate_advanced_write(14, 3) == AdvWriteResult::NOT_IN_ENUM);
     CHECK(validate_advanced_write(14, 20) == AdvWriteResult::OK);
+    CHECK(validate_advanced_write(44, 0) == AdvWriteResult::OK);
+    CHECK(validate_advanced_write(44, 2) == AdvWriteResult::OK);
+    CHECK(validate_advanced_write(44, 3) == AdvWriteResult::NOT_IN_ENUM);
 
     // --- enum display options (locale-independent presentation metadata) ----
     // Every K-ratio param (AP14..AP20) shares the same 8 options, aligned 1:1
@@ -151,6 +154,9 @@ int main() {
     const AdvEnumOption *o0 = advanced_enum_option_for_wire(18, 0);
     CHECK(o0 != nullptr && std::strcmp(o0->msg_id, "kratio_none") == 0);
     CHECK(std::strcmp(o0->label, "0") == 0);
+    const AdvEnumOption *pump_follow = advanced_enum_option_for_wire(44, 1);
+    CHECK(pump_follow != nullptr);
+    CHECK(std::strcmp(pump_follow->label, "Follow compressor") == 0);
     // AP18 is K5: its localizable name/detail keys follow the stable scheme.
     CHECK(std::strcmp(advanced_param_lookup(18)->name_msg_id, "ap.freq_ratio_k5.name") == 0);
     CHECK(std::strcmp(advanced_param_lookup(18)->detail_msg_id, "ap.freq_ratio_k5.detail") == 0);

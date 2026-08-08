@@ -25,6 +25,15 @@ static const AdvEnumOption kFreqRatioOptions[] = {
 static constexpr uint8_t kFreqRatioOptionCount =
     sizeof(kFreqRatioOptions) / sizeof(kFreqRatioOptions[0]);
 
+static const uint8_t kPumpModeValues[] = {0, 1, 2};
+static const AdvEnumOption kPumpModeOptions[] = {
+    { 0, "Intervals",         "pump_mode_intervals", 0, 0, "Runs at configured intervals" },
+    { 1, "Follow compressor", "pump_mode_follow",    0, 0, "Runs with the compressor"      },
+    { 2, "Continuous",        "pump_mode_continuous",0, 0, "Runs continuously"             },
+};
+static constexpr uint8_t kPumpModeOptionCount =
+    sizeof(kPumpModeOptions) / sizeof(kPumpModeOptions[0]);
+
 // Category names. Canonical display order is defined by kCategories below; the
 // controller and sniffer UIs both render sections in that order so the advanced
 // block looks identical everywhere. Keep these string literals in sync with
@@ -140,7 +149,7 @@ static const AdvancedParam s_advanced[] = {
       CAT_PUMP,      1,  99,   5, "min",    false, false, nullptr, 0, false, false, nullptr, 0, "ap.three_way_valve2_switch_time.name", "ap.three_way_valve2_switch_time.detail" },  // write-verified reg2043; doc Item43: set to any value !=5 to cancel external mode control, 5 to allow it
     { 44, 2044, "Water-Pump Mode",
       "Water-pump running mode (0 = run at intervals, 1 = follow the compressor, 2 = run continuously).",
-      CAT_PUMP,      0,   2,   2, nullptr,  false, false, nullptr, 0, false, false, nullptr, 0, "ap.water_pump_mode.name", "ap.water_pump_mode.detail" },  // write-verified reg2044
+      CAT_PUMP,      0,   2,   2, nullptr,  false, false, kPumpModeValues, 3, false, false, kPumpModeOptions, kPumpModeOptionCount, "ap.water_pump_mode.name", "ap.water_pump_mode.detail" },  // write-verified reg2044
     { 45, 2045, "Water-Pump Run Interval",
       "Interval between water-pump runs when the pump is in interval mode.",
       CAT_PUMP,      0,  30,   5, "min",    false, false, nullptr, 0, false, false, nullptr, 0, "ap.water_pump_run_interval.name", "ap.water_pump_run_interval.detail" },  // write-verified reg2045
