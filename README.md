@@ -18,7 +18,7 @@ register table, and the fault-code decoding that were previously copy-pasted
 | `macon_faults.{h,cpp}` | **Canonical fault table** — the five fault bitfield registers (2007, 2125, 2126, 2127, 2128) mapped bit-by-bit to their LCD/app codes, plus `macon_decode_faults()` returning active `{code, label, severity}`. |
 | `macon_advanced_params.{h,cpp}` | The installer-only **advanced ("Cn") parameter** table (`reg = 2000 + Cn`) with per-parameter valid range / default / unit from the vendor doc, plus `validate_advanced_write()` — a **reject-not-clamp** write guardrail. |
 | `macon_state.{h,cpp}` | **Domain decode layer** — `decode_state(base, regs, count, &MaconState)` turns a raw Macon register image into one authoritative decoded struct (mode, temps, electrical, setpoints, run/flags, raw fault registers). Owns which register carries which field. Also `decode_mode()`/`MaconMode` for the reg2049 reversing-valve direction. |
-| `macon_link.{h,cpp}` | **Transaction layer (Layer 2)** — `MaconLink` performs synchronous setpoint write/read transactions (`set_cooling_setpoint()`, `set_hot_water_setpoint()`, `read_*_setpoint()`) over an injected `MaconTransport` the consumer implements on its UART. Still pure/host-testable. |
+| `macon_link.{h,cpp}` | **Transaction layer (Layer 2)** — `MaconLink` performs synchronous setpoint transactions and verified absolute-register writes (`write_register()`) over an injected `MaconTransport` the consumer implements on its UART. Still pure/host-testable. |
 
 All code is in namespace `arctic` (registers/faults/advanced-params/state/link)
 and `tuya_codec` (codec).

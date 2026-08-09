@@ -84,6 +84,43 @@ int main() {
     }
 
     // ----------------------------------------------------------------------
+    // write_register: absolute holding-register addresses are translated to
+    // unified wire offsets (reg2013 -> holding offset 50 + 13 = 63).
+    // ----------------------------------------------------------------------
+    {
+        FakeTransport t;
+        uint8_t ack[16];
+        size_t an = tuya_codec::encode_command_ack(ack, sizeof(ack), 63, 1);
+        t.queue(ack, an);
+
+        MaconLink link(t);
+        CHECK(link.write_register(2013, 45) == MaconResult::Ok);
+
+        uint8_t want[16];
+        uint8_t data = 45;
+        size_t wn = tuya_codec::encode_command(want, sizeof(want), 63, 1, &data);
+        CHECK(std::memcmp(t.written.data(), want, wn) == 0);
+    }
+
+    // Telemetry registers use the zero-based telemetry wire window.
+    {
+        FakeTransport t;
+        uint8_t ack[16];
+        size_t an = tuya_codec::encode_command_ack(ack, sizeof(ack), 2, 1);
+        t.queue(ack, an);
+
+        MaconLink link(t);
+        CHECK(link.write_register(2095, 50) == MaconResult::Ok);
+    }
+
+    {
+        FakeTransport t;
+        MaconLink link(t);
+        CHECK(link.write_register(1999, 1) == MaconResult::UnsupportedRegister);
+        CHECK(t.written.empty());
+    }
+
+    // ----------------------------------------------------------------------
     // set_hot_water_setpoint: wire addr 0x0002.
     // ----------------------------------------------------------------------
     {

@@ -58,6 +58,7 @@ enum class MaconResult {
     NoResponse,    // no valid matching frame arrived before the timeout
     BadResponse,   // a frame arrived but did not match the expected addr/count,
                    // or a read response was too short to hold the field
+    UnsupportedRegister, // register is outside the known Macon wire windows
     Nack,          // the unit replied with an fc-exception frame (fc | 0x80).
                    // SPECULATIVE: a NACK has never been observed on this unit;
                    // its exact shape is unconfirmed (see docs/REGISTERS.md and
@@ -90,6 +91,13 @@ public:
     /// Hot-water setpoint — wire addr 0x0002 (reg2095). Confirmed live.
     MaconResult set_hot_water_setpoint(int celsius);
 
+    /// Write one byte to a verified Macon register and wait for its ACK.
+    ///
+    /// The absolute register address is translated through KNOWN_WINDOWS so
+    /// consumers do not duplicate the holding/telemetry wire-offset mapping.
+    /// Returns UnsupportedRegister when the address is outside known windows.
+    MaconResult write_register(uint16_t register_address, uint8_t value);
+
     // --- setpoint reads (controller -> unit) -------------------------------
     // Each issues an fc=0x03 read of the telemetry window (wire addr 0,
     // count 50) and extracts the setpoint byte. Returns Ok and writes
@@ -113,6 +121,7 @@ public:
 private:
     // Write one signed-byte setpoint to `wire_addr`, wait for the fc=0x06 ACK.
     MaconResult write_setpoint(uint16_t wire_addr, int celsius);
+    MaconResult write_byte(uint16_t wire_addr, uint8_t value);
     // Read the telemetry window and return telemetry byte `byte_offset`
     // (== wire addr) as a signed whole-°C int.
     MaconResult read_setpoint(uint16_t byte_offset, int *out_celsius);
