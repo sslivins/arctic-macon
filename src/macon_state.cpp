@@ -235,7 +235,7 @@ namespace {
 // Library-owned static defaults. Cooling has no unit-reported limit register,
 // so these are authoritative. Hot-water's max is refined from the live ceiling
 // (reg2012) when available (see setpoint_limits()).
-constexpr int kCoolingMin = 10, kCoolingMax = 30;
+constexpr int kCoolingMin = 4, kCoolingMax = 30;
 constexpr int kHeatingMin = 20, kHeatingMax = 60;
 constexpr int kHotWaterMin = 30, kHotWaterMax = 60;
 }  // namespace
