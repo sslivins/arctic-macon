@@ -263,8 +263,9 @@ int main() {
     {
         // Cooling: library-owned static range, never from the unit.
         SetpointLimits cl = setpoint_limits(SetpointKind::Cooling);
-        CHECK(cl.min_c == 10 && cl.max_c == 30 && !cl.max_from_unit);
-        CHECK(clamp_setpoint(SetpointKind::Cooling, 5)  == 10);   // below min -> min
+        CHECK(cl.min_c == 4 && cl.max_c == 30 && !cl.max_from_unit);
+        CHECK(clamp_setpoint(SetpointKind::Cooling, 3)  == 4);    // below min -> min
+        CHECK(clamp_setpoint(SetpointKind::Cooling, 4)  == 4);    // lower bound accepted
         CHECK(clamp_setpoint(SetpointKind::Cooling, 40) == 30);   // above max -> max
         CHECK(clamp_setpoint(SetpointKind::Cooling, 22) == 22);   // in range -> unchanged
 
