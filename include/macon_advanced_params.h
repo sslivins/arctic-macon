@@ -8,7 +8,7 @@
 // out-of-range writes have previously put the controller into a bad/cycling
 // state.  This file carries the metadata, the confirmed AP->register map, a
 // write-validation guardrail, and a *pure* write-plan builder.  It performs NO
-// bus IO itself — the consumer (controller) drives the actual Modbus write.
+// bus IO itself — the consumer (controller) drives the actual Macon write.
 //
 // Register mapping (reverse-engineered, EMPIRICAL):
 //   There is NO formula.  `reg = 2000 + AP` is WRONG — the wire layout is
@@ -173,7 +173,7 @@ AdvWriteResult validate_advanced_write(uint8_t ap, int16_t value);
 /// True if AP `ap` has a change-and-capture verified register (reg != 0).
 bool advanced_param_reg_known(uint8_t ap);
 
-/// A concrete, validated Modbus write: the exact register and 16-bit wire value
+/// A concrete, validated Macon write: the exact register and 16-bit wire value
 /// to send.  Only populated when advanced_prepare_write() returns OK.
 struct AdvWritePlan {
     uint16_t reg;    // Wire register to write (fc=0x06)
