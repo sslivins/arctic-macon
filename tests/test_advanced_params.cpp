@@ -81,6 +81,10 @@ int main() {
     CHECK(advanced_display_value(29, 45) == 45);
     CHECK(advanced_display_step(29) == 1);
     CHECK(std::strcmp(advanced_display_unit(29), "min") == 0);
+    CHECK(advanced_temperature_kind(24) == AdvancedTemperatureKind::Absolute);
+    CHECK(advanced_temperature_kind(32) == AdvancedTemperatureKind::Differential);
+    CHECK(advanced_temperature_kind(42) == AdvancedTemperatureKind::Differential);
+    CHECK(advanced_temperature_kind(29) == AdvancedTemperatureKind::None);
 
     // --- read-only param (AP41): reg known but writes refused --------------
     CHECK(advanced_param_reg_known(41));

@@ -137,6 +137,12 @@ struct AdvancedParam {
     const char    *display_unit = nullptr; // Optional user-facing replacement for unit.
 };
 
+enum class AdvancedTemperatureKind : uint8_t {
+    None = 0,
+    Absolute,
+    Differential,
+};
+
 /// Result of a validated write attempt / plan.
 enum class AdvWriteResult {
     OK,                 // Valid, register known, and writable: allowed
@@ -190,6 +196,10 @@ AdvWriteResult advanced_prepare_write(uint8_t ap, int16_t value, AdvWritePlan *o
 int16_t advanced_display_value(uint8_t ap, int16_t wire_value);
 int16_t advanced_display_step(uint8_t ap);
 const char *advanced_display_unit(uint8_t ap);
+
+// Temperature semantics for unit conversion. Absolute values use the
+// Fahrenheit offset; differentials scale only.
+AdvancedTemperatureKind advanced_temperature_kind(uint8_t ap);
 
 /// Build a write plan from a user-facing display value. Rejects values that are
 /// not exactly representable by the parameter's display multiplier.

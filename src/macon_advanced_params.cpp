@@ -1,4 +1,5 @@
 #include "macon_advanced_params.h"
+#include <cstring>
 
 namespace arctic {
 
@@ -277,6 +278,21 @@ const char *advanced_display_unit(uint8_t ap) {
     const AdvancedParam *p = advanced_param_lookup(ap);
     if (!p) return nullptr;
     return p->display_unit ? p->display_unit : p->unit;
+}
+
+AdvancedTemperatureKind advanced_temperature_kind(uint8_t ap) {
+    const AdvancedParam *p = advanced_param_lookup(ap);
+    if (!p || !p->unit || std::strcmp(p->unit, "°C") != 0) {
+        return AdvancedTemperatureKind::None;
+    }
+
+    switch (ap) {
+        case 32:  // Air-vs-coil difference
+        case 42:  // Target superheat
+            return AdvancedTemperatureKind::Differential;
+        default:
+            return AdvancedTemperatureKind::Absolute;
+    }
 }
 
 AdvWriteResult advanced_prepare_display_write(uint8_t ap,
