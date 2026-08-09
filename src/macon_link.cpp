@@ -14,6 +14,7 @@ const char *macon_result_name(MaconResult r) {
         case MaconResult::WriteFailed: return "WriteFailed";
         case MaconResult::NoResponse:  return "NoResponse";
         case MaconResult::BadResponse: return "BadResponse";
+        case MaconResult::UnsupportedRegister: return "UnsupportedRegister";
         case MaconResult::Nack:        return "Nack";
         default:                       return "Unknown";
     }
@@ -36,6 +37,20 @@ MaconResult MaconLink::set_hot_water_setpoint(int celsius) {
     return write_setpoint(0x0002, celsius);
 }
 
+MaconResult MaconLink::write_register(uint16_t register_address, uint8_t value) {
+    for (size_t i = 0; i < tuya_codec::KNOWN_WINDOWS_COUNT; ++i) {
+        const tuya_codec::RegWindow &win = tuya_codec::KNOWN_WINDOWS[i];
+        const uint16_t data_count = win.field_b - win.prefix_len;
+        if (register_address >= win.reg_base &&
+            register_address < win.reg_base + data_count) {
+            const uint16_t wire_addr =
+                win.field_a + win.prefix_len + (register_address - win.reg_base);
+            return write_byte(wire_addr, value);
+        }
+    }
+    return MaconResult::UnsupportedRegister;
+}
+
 MaconResult MaconLink::read_cooling_setpoint(int *out_celsius) {
     return read_setpoint(REG_COOLING_SETPOINT - tuya_codec::KNOWN_WINDOWS[0].reg_base, out_celsius);
 }
@@ -55,7 +70,10 @@ MaconResult MaconLink::write_setpoint(uint16_t wire_addr, int celsius) {
     if (celsius < -128) celsius = -128;
     if (celsius >  127) celsius =  127;
     const uint8_t data = static_cast<uint8_t>(static_cast<int8_t>(celsius));
+    return write_byte(wire_addr, data);
+}
 
+MaconResult MaconLink::write_byte(uint16_t wire_addr, uint8_t data) {
     uint8_t req[16];
     const size_t n = tuya_codec::encode_command(req, sizeof(req), wire_addr, 1, &data);
     if (n == 0) {
