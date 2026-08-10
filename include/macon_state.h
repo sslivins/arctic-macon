@@ -50,6 +50,18 @@ MaconMode decode_mode(uint16_t raw);
 /// Human-readable name for a MaconMode ("Heating", "Cooling", "Unknown").
 const char *mode_name(MaconMode m);
 
+enum class MaconWorkingMode : uint8_t {
+    Cooling = 0,
+    FloorHeating = 1,
+    FanCoilHeating = 2,
+    HotWater = 5,
+    Auto = 6,
+    Unknown = 0xFF,
+};
+
+MaconWorkingMode decode_working_mode(uint16_t raw);
+const char *working_mode_name(MaconWorkingMode mode);
+
 // ---------------------------------------------------------------------------
 // Decoded state
 // ---------------------------------------------------------------------------
@@ -63,13 +75,17 @@ struct MaconState {
     // Operating mode (reversing-valve direction).
     MaconMode mode;
     bool      mode_valid;
+    MaconWorkingMode working_mode;
+    bool             working_mode_valid;
 
-    // Run / flags. `running` follows the mainboard run-state (reg2007 == 0x20);
+    // Run / flags. `running` follows the mainboard run-state (reg2007 bit5);
     // compressor/pump/defrost/fan come from the reg2129/reg2130 icon bitfields.
     bool     running;
     bool     compressor_on;
     bool     pump_on;
     bool     defrost_on;
+    bool     cooling_on;
+    bool     cooling_on_valid;
     bool     fan_on;
     uint16_t fan_level;         // reg2003 A10 DC motor speed (raw level)
 

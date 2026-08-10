@@ -42,6 +42,12 @@ int main() {
     CHECK(std::strcmp(mode_name(MaconMode::Heating), "Heating") == 0);
     CHECK(std::strcmp(mode_name(MaconMode::Cooling), "Cooling") == 0);
     CHECK(std::strcmp(mode_name(MaconMode::Unknown), "Unknown") == 0);
+    CHECK(decode_working_mode(0) == MaconWorkingMode::Cooling);
+    CHECK(decode_working_mode(1) == MaconWorkingMode::FloorHeating);
+    CHECK(decode_working_mode(2) == MaconWorkingMode::FanCoilHeating);
+    CHECK(decode_working_mode(5) == MaconWorkingMode::HotWater);
+    CHECK(decode_working_mode(6) == MaconWorkingMode::Auto);
+    CHECK(decode_working_mode(3) == MaconWorkingMode::Unknown);
 
     // --- decode_state: heating snapshot ------------------------------------
     uint16_t regs[COUNT];
@@ -59,6 +65,7 @@ int main() {
     set_reg(regs, REG_COOLING_SETPOINT, 24);    // reg2093 cooling setpoint
     set_reg(regs, REG_AUX_HEAT_SETPOINT, 40);   // reg2094 aux/heating (unverified)
     set_reg(regs, REG_HOT_WATER_SETPOINT, 38);  // reg2095 live hot-water setpoint
+    set_reg(regs, REG_WORKING_MODE, 1);         // floor heating
     set_reg(regs, REG_AC_CURRENT, 12);
     set_reg(regs, REG_AC_VOLTAGE, 23);          // *10 => 230 V
     set_reg(regs, REG_DC_BUS_VOLTAGE, 36);      // *10 => 360 V
@@ -71,6 +78,8 @@ int main() {
 
     CHECK(st.mode == MaconMode::Heating);
     CHECK(st.mode_valid);
+    CHECK(st.working_mode == MaconWorkingMode::FloorHeating);
+    CHECK(st.working_mode_valid);
     CHECK(st.running);
     CHECK(st.compressor_on);
     CHECK(st.pump_on);
@@ -128,6 +137,9 @@ int main() {
             set_reg(r, REG_FAULT_RUNSTATE, 0x20);   // enabled, no fault
             set_reg(r, REG_COMPRESSOR_FREQ, 55);    // compressor running
             set_reg(r, REG_OPERATING_MODE, 0);      // heating direction
+            set_reg(r, REG_WORKING_MODE, 1);        // floor heating request
+            set_reg(r, REG_INLET_WATER_TEMP, 38);
+            set_reg(r, REG_OUTLET_WATER_TEMP, 45);
         };
         MaconState o;
 
@@ -137,8 +149,30 @@ int main() {
 
         reset();                                    // running + cooling
         set_reg(r, REG_OPERATING_MODE, 4);
+        set_reg(r, REG_WORKING_MODE, 0);
+        set_reg(r, REG_ICON_BITS2, 0x14);
+        set_reg(r, REG_INLET_WATER_TEMP, 13);
+        set_reg(r, REG_OUTLET_WATER_TEMP, 10);
         decode_state(BASE, r, COUNT, &o);
         CHECK(decode_operation(o) == MaconOperation::Cooling);
+
+        reset();                                    // Auto heating despite stale 2049=4
+        set_reg(r, REG_OPERATING_MODE, 4);
+        set_reg(r, REG_WORKING_MODE, 6);
+        decode_state(BASE, r, COUNT, &o);
+        CHECK(decode_operation(o) == MaconOperation::Heating);
+
+        reset();                                    // Auto cooling follows live status
+        set_reg(r, REG_OPERATING_MODE, 4);
+        set_reg(r, REG_WORKING_MODE, 6);
+        set_reg(r, REG_ICON_BITS2, 0x14);
+        decode_state(BASE, r, COUNT, &o);
+        CHECK(decode_operation(o) == MaconOperation::Cooling);
+
+        reset();                                    // run bit may coexist with another flag
+        set_reg(r, REG_FAULT_RUNSTATE, 0x60);
+        decode_state(BASE, r, COUNT, &o);
+        CHECK(o.running);
 
         reset();                                    // enabled, compressor stopped
         set_reg(r, REG_COMPRESSOR_FREQ, 0);

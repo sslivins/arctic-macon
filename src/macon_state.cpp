@@ -24,6 +24,28 @@ const char *mode_name(MaconMode m) {
     }
 }
 
+MaconWorkingMode decode_working_mode(uint16_t raw) {
+    switch (static_cast<uint8_t>(raw & 0xFF)) {
+        case 0: return MaconWorkingMode::Cooling;
+        case 1: return MaconWorkingMode::FloorHeating;
+        case 2: return MaconWorkingMode::FanCoilHeating;
+        case 5: return MaconWorkingMode::HotWater;
+        case 6: return MaconWorkingMode::Auto;
+        default: return MaconWorkingMode::Unknown;
+    }
+}
+
+const char *working_mode_name(MaconWorkingMode mode) {
+    switch (mode) {
+        case MaconWorkingMode::Cooling:        return "Cooling";
+        case MaconWorkingMode::FloorHeating:   return "Floor Heating";
+        case MaconWorkingMode::FanCoilHeating: return "Fan Coil Heating";
+        case MaconWorkingMode::HotWater:       return "Hot Water";
+        case MaconWorkingMode::Auto:           return "Auto";
+        default:                               return "Unknown";
+    }
+}
+
 // Interpret a stored register value as a signed whole-°C byte.
 static inline int16_t s8(uint16_t v) {
     return static_cast<int16_t>(static_cast<int8_t>(v & 0xFF));
@@ -37,6 +59,7 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     }
     std::memset(out, 0, sizeof(*out));
     out->mode = MaconMode::Unknown;
+    out->working_mode = MaconWorkingMode::Unknown;
 
     if (regs == nullptr || count == 0) {
         return status;
@@ -65,6 +88,11 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     if (!out->mode_valid) {
         out->mode = MaconMode::Unknown;   // absent register must not decode as Heating
     }
+    out->working_mode =
+        decode_working_mode(val(REG_WORKING_MODE, &out->working_mode_valid));
+    if (!out->working_mode_valid) {
+        out->working_mode = MaconWorkingMode::Unknown;
+    }
 
     // --- run-state + icon bits --------------------------------------------
     // reg2007 = run/fault bitfield (0x20 = running); reg2130 = icon bitfield #1
@@ -78,10 +106,12 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     const uint16_t icon_bits2 = val(REG_ICON_BITS2, &icon2_valid);     // reg2129
     const uint16_t fan_raw    = val(REG_DC_MOTOR_SPEED, &fan_valid);   // reg2003 A10
 
-    out->running       = (run_state == 0x20);
+    out->running       = (run_state & 0x20) != 0;
     out->compressor_on = (icon_bits1 & 0x04) != 0;  // reg2130 bit2
     out->pump_on       = (icon_bits1 & 0x08) != 0;  // reg2130 bit3
     out->defrost_on    = (icon_bits2 & 0x02) != 0;  // reg2129 bit1
+    out->cooling_on    = (icon_bits2 & 0x04) != 0;  // reg2129 bit2
+    out->cooling_on_valid = icon2_valid;
     out->fan_on        = (icon_bits2 & 0x10) != 0;  // reg2129 bit4
     out->fan_level     = fan_raw;
 
@@ -163,8 +193,26 @@ MaconOperation decode_operation(const MaconState &s) {
         return MaconOperation::Idle;
     }
 
-    // Running: report the reversing-valve direction. An Unknown/untrusted mode
-    // falls back to Heating (this is a heating-biased unit).
+    if (s.cooling_on_valid) {
+        return s.cooling_on ? MaconOperation::Cooling
+                            : MaconOperation::Heating;
+    }
+
+    if (s.working_mode_valid) {
+        switch (s.working_mode) {
+            case MaconWorkingMode::Cooling:
+                return MaconOperation::Cooling;
+            case MaconWorkingMode::FloorHeating:
+            case MaconWorkingMode::FanCoilHeating:
+            case MaconWorkingMode::HotWater:
+                return MaconOperation::Heating;
+            case MaconWorkingMode::Auto:
+                return MaconOperation::Unknown;
+            default:
+                break;
+        }
+    }
+
     return (s.mode == MaconMode::Cooling) ? MaconOperation::Cooling
                                           : MaconOperation::Heating;
 }
