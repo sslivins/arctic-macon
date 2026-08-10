@@ -58,6 +58,10 @@ constexpr uint16_t REG_AUX_HEAT_SETPOINT    = 2094;  // wire addr 0x0001; aux/ba
 // fc=0x06 write to wire addr 0x0002. This is the live target, distinct from the
 // reg2012 (AP13) ceiling.
 constexpr uint16_t REG_HOT_WATER_SETPOINT   = 2095;  // wire addr 0x0002; live hot-water setpoint (confirmed)
+// wire addr 0x0003. Confirmed live 2026-08-09: selecting Auto emitted fc=0x06
+// writes with value 6. Values match the OEM working-mode enum used by the
+// controller: 0=cooling, 1=floor heat, 2=fan-coil heat, 5=hot water, 6=auto.
+constexpr uint16_t REG_WORKING_MODE         = 2096;
 constexpr uint16_t REG_AC_VOLTAGE           = 2101;  // A13 AC input voltage (x10 = V)
 constexpr uint16_t REG_MAIN_EEV             = 2104;  // A5  main elec. expansion valve
 constexpr uint16_t REG_IPM_TEMP             = 2113;  // A8  IPM module temp
