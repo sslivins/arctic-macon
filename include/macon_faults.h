@@ -78,4 +78,39 @@ bool macon_has_fault(uint8_t reg2007, uint8_t reg2125, uint8_t reg2126,
 // the register has no fault bits.
 const MaconFaultBit *macon_fault_bits_for_reg(uint16_t reg, size_t *count);
 
+// ---------------------------------------------------------------------------
+// Fault ENCODE (identity lookup + register-window injection).
+//
+// The decode side above turns raw registers into codes.  This side is the
+// inverse: it is the single source of truth for "which (reg, bit) does code X
+// live at", so NO consumer (controller demo/test injection, simulator) ever
+// hardcodes a bit position.  The controller's test-only fault injection and the
+// device simulator both drive the SAME real register bits through here.
+//
+// NOTE ON IDENTITY: a P/E code is NOT a unique key -- e.g. "E28" (outdoor +
+// indoor EEPROM) and "E05" (coil sensor) each appear at two distinct
+// (reg, bit) sites.  The stable identity of a fault is therefore the
+// (reg, bit) pair, and history/dedup must key on that, not the code string.
+// The by-code helpers below operate on ALL sites sharing a code (lighting any
+// one of an "E28" pair still displays "E28"), and report how many they touched.
+// ---------------------------------------------------------------------------
+
+// Exact-identity lookup: the fault bit at (reg, bit), or nullptr if none.
+const MaconFaultBit *macon_fault_bit(uint16_t reg, uint8_t bit);
+
+// Collect every fault-bit entry whose `code` matches `code` into `out` (up to
+// `max`).  Returns the total number of matches (which may exceed `max`; only
+// the first `max` are written).  Handles the non-unique-code case.
+size_t macon_fault_bits_for_code(const char *code, const MaconFaultBit **out,
+                                 size_t max);
+
+// Set (or clear) EVERY register bit whose code matches `code`, in the register
+// window `regs[0..count)` starting at wire address `base` (real Tuya layout).
+// Only the low byte of each register is significant on this unit.  Registers
+// outside the window are skipped.  Returns the number of bits actually written
+// (0 if the code is unknown or all its sites lie outside the window), or -1 on
+// bad arguments (null regs / null code).
+int macon_set_fault_by_code(uint16_t *regs, uint16_t base, size_t count,
+                            const char *code, bool on);
+
 }  // namespace arctic

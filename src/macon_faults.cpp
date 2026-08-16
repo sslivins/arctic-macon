@@ -1,5 +1,7 @@
 #include "macon_faults.h"
 
+#include <cstring>
+
 namespace arctic {
 
 // ---------------------------------------------------------------------------
@@ -74,6 +76,49 @@ const MaconFaultBit *macon_fault_bits_for_reg(uint16_t reg, size_t *count)
     }
     if (count) *count = n;
     return n ? first : nullptr;
+}
+
+const MaconFaultBit *macon_fault_bit(uint16_t reg, uint8_t bit)
+{
+    for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {
+        if (MACON_FAULT_BITS[i].reg == reg && MACON_FAULT_BITS[i].bit == bit) {
+            return &MACON_FAULT_BITS[i];
+        }
+    }
+    return nullptr;
+}
+
+size_t macon_fault_bits_for_code(const char *code, const MaconFaultBit **out,
+                                 size_t max)
+{
+    if (!code) return 0;
+    size_t n = 0;
+    for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {
+        if (std::strcmp(MACON_FAULT_BITS[i].code, code) == 0) {
+            if (out && n < max) out[n] = &MACON_FAULT_BITS[i];
+            ++n;
+        }
+    }
+    return n;
+}
+
+int macon_set_fault_by_code(uint16_t *regs, uint16_t base, size_t count,
+                            const char *code, bool on)
+{
+    if (!regs || !code) return -1;
+    int written = 0;
+    for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {
+        const MaconFaultBit &fb = MACON_FAULT_BITS[i];
+        if (std::strcmp(fb.code, code) != 0) continue;
+        if (fb.reg < base) continue;
+        size_t idx = static_cast<size_t>(fb.reg - base);
+        if (idx >= count) continue;
+        uint16_t mask = static_cast<uint16_t>(1u << fb.bit);
+        if (on) regs[idx] |= mask;
+        else    regs[idx] &= static_cast<uint16_t>(~mask);
+        ++written;
+    }
+    return written;
 }
 
 static uint8_t reg_value(uint16_t reg, uint8_t r2007, uint8_t r2125,
