@@ -46,6 +46,13 @@ public:
     /// the number of bytes read (0 on timeout with no data), or a negative
     /// value on error.
     virtual int read(uint8_t *buf, size_t n, int timeout_ms) = 0;
+
+    /// Discard any buffered RX bytes. Only meaningful for a real UART; the
+    /// default is a no-op so fake/host transports need not implement it. Only
+    /// safe to call when the bus is known idle (a genuine response is dropped
+    /// otherwise), which the master guarantees by calling it under its bus
+    /// mutex immediately before a request or after a failed transaction.
+    virtual void flush_rx() {}
 };
 
 // ---------------------------------------------------------------------------
