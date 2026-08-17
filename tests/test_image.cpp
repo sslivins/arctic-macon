@@ -167,6 +167,24 @@ int main() {
         CHECK(img.in_window(HOLDING_START) && !img.in_window(1999));
     }
 
+    // --- macon_field_address (diagnostic dump address lookup) ---------------
+    {
+        CHECK(macon_field_address(MaconField::WaterTankTemp) == REG_WATER_TANK_TEMP);
+        CHECK(macon_field_address(MaconField::AcVoltage)     == REG_AC_VOLTAGE);
+        CHECK(macon_field_address(MaconField::RealtimePower) == REG_REALTIME_POWER);
+        CHECK(macon_field_address(MaconField::CoolingSetpoint) == REG_COOLING_SETPOINT);
+        // Every settable field must resolve to a non-zero address.
+        const MaconField all[] = {
+            MaconField::WaterTankTemp, MaconField::OutletWaterTemp, MaconField::InletWaterTemp,
+            MaconField::DischargeTemp, MaconField::SuctionTemp, MaconField::OutdoorCoilTemp,
+            MaconField::IndoorCoilTemp, MaconField::OutdoorAmbientTemp, MaconField::IpmTemp,
+            MaconField::CompressorFreq, MaconField::FanLevel, MaconField::AcVoltage,
+            MaconField::AcCurrent, MaconField::DcVoltage, MaconField::PrimaryEev,
+            MaconField::RealtimePower, MaconField::CoolingSetpoint, MaconField::HeatingSetpoint,
+            MaconField::HotWaterSetpoint, MaconField::HotWaterCeiling };
+        for (MaconField f : all) CHECK(macon_field_address(f) != 0);
+    }
+
     if (g_failures) {
         std::printf("%d FAILURE(S)\n", g_failures);
         return 1;

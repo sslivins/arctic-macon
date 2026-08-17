@@ -208,6 +208,12 @@ const char   *macon_fault_resolution(MaconFaultId id);
 // Stable per-bit site identity for a (reg, bit). Opaque token; 0 if unknown.
 MaconFaultSiteId macon_fault_site_id(uint16_t reg, uint8_t bit);
 
+// Reverse of macon_fault_site_id: the fault-bit entry a site token refers to,
+// or nullptr if the token is unknown. Lets a consumer that stored only an
+// opaque site id (e.g. an event-log payload) recover the code/label/severity
+// for display without ever handling a (reg, bit) pair itself.
+const MaconFaultBit *macon_fault_bit_for_site(MaconFaultSiteId site);
+
 // True if the fault identified by `id` is active in the five raw fault bytes
 // (any of its sites lit). INFO / Unknown are never "active".
 bool macon_has_fault_id(uint8_t reg2007, uint8_t reg2125, uint8_t reg2126,

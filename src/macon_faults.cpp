@@ -136,6 +136,16 @@ MaconFaultSiteId macon_fault_site_id(uint16_t reg, uint8_t bit)
     return static_cast<MaconFaultSiteId>((reg << 3) | (bit & 0x7));
 }
 
+const MaconFaultBit *macon_fault_bit_for_site(MaconFaultSiteId site)
+{
+    if (site == 0) return nullptr;
+    for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {
+        const MaconFaultBit &fb = MACON_FAULT_BITS[i];
+        if (macon_fault_site_id(fb.reg, fb.bit) == site) return &fb;
+    }
+    return nullptr;
+}
+
 MaconFaultId macon_fault_id_from_code(const char *code)
 {
     if (!code) return MaconFaultId::Unknown;
