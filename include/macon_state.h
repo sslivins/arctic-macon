@@ -23,6 +23,8 @@
 #include <cstdint>
 #include <cstddef>
 
+#include "macon_faults.h"
+
 namespace arctic {
 
 // ---------------------------------------------------------------------------
@@ -139,10 +141,22 @@ struct DecodeStatus {
 /// unit). Registers outside [base, base + count) decode as not-valid and leave
 /// their field at 0 / Unknown. `out` must be non-null.
 ///
+/// `present` (optional) is a parallel array of length `count`: when non-null,
+/// register (base + i) is treated as ABSENT unless `present[i]` is true, even
+/// though it lies within the window. This lets a full-span backing store (e.g.
+/// MaconImage) report genuine per-register presence instead of "everything in
+/// range is present". When null (default) every in-range register is present,
+/// preserving the original bare-array behaviour.
+///
 /// Behaviour is a faithful port of the controller's former applyMaconMapping()
 /// register->field logic, plus the reg2049 mode field.
 DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
-                          MaconState *out);
+                          MaconState *out, const bool *present = nullptr);
+
+/// True if the fault identified by `id` is active in a decoded state (any of
+/// its sites lit). Lets a consumer gate on a fault WITHOUT knowing its OEM code
+/// or (reg, bit): e.g. macon_state_has_fault(s, MaconFaultId::InletWaterSensor).
+bool macon_state_has_fault(const MaconState &s, MaconFaultId id);
 
 // ---------------------------------------------------------------------------
 // Operating state

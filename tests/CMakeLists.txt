@@ -38,3 +38,11 @@ add_test(NAME macon_link COMMAND test_macon_link)
 add_executable(test_faults test_faults.cpp)
 target_link_libraries(test_faults PRIVATE arctic_macon)
 add_test(NAME faults COMMAND test_faults)
+
+add_executable(test_fault_identity test_fault_identity.cpp)
+target_link_libraries(test_fault_identity PRIVATE arctic_macon)
+add_test(NAME fault_identity COMMAND test_fault_identity)
+
+add_executable(test_image test_image.cpp)
+target_link_libraries(test_image PRIVATE arctic_macon)
+add_test(NAME image COMMAND test_image)

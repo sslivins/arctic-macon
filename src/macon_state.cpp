@@ -52,7 +52,7 @@ static inline int16_t s8(uint16_t v) {
 }
 
 DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
-                          MaconState *out) {
+                          MaconState *out, const bool *present) {
     DecodeStatus status = {0, 0};
     if (out == nullptr) {
         return status;
@@ -67,11 +67,12 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
 
     auto in_range = [&](uint16_t regnum) -> bool {
         const int32_t idx = static_cast<int32_t>(regnum) - static_cast<int32_t>(base);
-        return idx >= 0 && idx < static_cast<int32_t>(count);
+        if (idx < 0 || idx >= static_cast<int32_t>(count)) return false;
+        return present == nullptr || present[idx];
     };
     auto R = [&](uint16_t regnum) -> uint16_t {
+        if (!in_range(regnum)) return 0;
         const int32_t idx = static_cast<int32_t>(regnum) - static_cast<int32_t>(base);
-        if (idx < 0 || idx >= static_cast<int32_t>(count)) return 0;
         return regs[idx];
     };
     // Read a register, tracking presence and the expected/present tallies.
@@ -159,6 +160,12 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     out->faults_valid = f_run_v && f_ee_v && f_comp_v && f_elec_v && f_ref_v;
 
     return status;
+}
+
+bool macon_state_has_fault(const MaconState &s, MaconFaultId id)
+{
+    return macon_has_fault_id(s.fault_run, s.fault_ee, s.fault_comp,
+                              s.fault_elec, s.fault_ref, id);
 }
 
 MaconOperation decode_operation(const MaconState &s) {
