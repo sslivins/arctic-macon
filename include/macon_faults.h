@@ -35,6 +35,72 @@ enum class FaultSeverity : uint8_t {
     CRITICAL = 3,
 };
 
+// ---------------------------------------------------------------------------
+// Semantic fault identity.
+//
+// Consumers must reference faults by these library-owned identifiers, NEVER by
+// the OEM code string ("P02") or a raw (reg, bit) position. The library maps an
+// id to its OEM code(s), label, severity and resolution internally, so the
+// controller carries no protocol knowledge.
+//
+// A `MaconFaultId` is the SEMANTIC identity of a fault (one per distinct OEM
+// code). It is intentionally NOT unique per (reg, bit): a single code such as
+// "E28" or "E05" is emitted from two distinct register bits, and all its sites
+// share one id. Use `MaconFaultId` for "is this condition present?", to inject a
+// fault, and to look up resolution text.
+//
+// For history / dedup / transition events, where each physical bit must be
+// tracked separately, use `MaconFaultSiteId` (below) — the stable per-bit
+// identity — instead.
+// ---------------------------------------------------------------------------
+enum class MaconFaultId : uint16_t {
+    // reg 2007
+    TempDifferenceTooLarge,     // "P15"
+    OutletTempTooLow,           // "P16"
+    FeProtection,               // "FE"
+    FfProtection,               // "FF"
+    // reg 2125
+    EepromError,                // "E28" (outdoor + indoor sites)
+    InletWaterSensor,           // "E19"
+    OutletWaterSensor,          // "E18"
+    CoolCoilSensor,             // "E13"
+    E03Protection,              // "E03"
+    DriverCommunication,        // "E27"
+    ControllerCommunication,    // "E21"
+    // reg 2126
+    CompressorStartFailure,     // "r02"
+    IndoorOutdoorCommunication, // "E26"
+    IpmFault,                   // "r01"
+    DischargeSensor,            // "E01"
+    SuctionSensor,              // "E09"
+    CoilSensor,                 // "E05" (reg2126 + reg2128 sites)
+    AmbientSensor,              // "E22"
+    // reg 2127
+    AcCurrentProtection,        // "P19"
+    CompressorPhaseCurrent,     // "r06"
+    AcVoltageProtection,        // "r10"
+    DcBusVoltageProtection,     // "r11"
+    IpmTemperatureProtection,   // "r05"
+    HighDischargeTemp,          // "P11"
+    HighPressureProtection,     // "P02"
+    // reg 2128
+    LowPressureProtection,      // "P06"
+    CoilOverheat,               // "P27"
+    AmbientOutOfRange,          // "PC"
+    P10Protection,              // "P10"
+    AntifreezeProtection,       // "P30"
+    WaterFlowProtection,        // "P01"
+
+    Count,                      // number of distinct fault ids
+    Unknown = 0xFFFF,           // no fault / unrecognised code
+};
+
+// Stable per-bit identity of one fault site. Opaque to consumers: treat it as a
+// comparable/hashable token for history and transition detection only; do NOT
+// derive a register or bit from it. Distinct sites of the same code (e.g. the
+// two "E28" bits) have distinct site ids but the same MaconFaultId.
+using MaconFaultSiteId = uint16_t;
+
 // One decodable bit in one of the five Macon fault-bitfield registers.
 struct MaconFaultBit {
     uint16_t      reg;        // 2007, 2125, 2126, 2127 or 2128
@@ -42,6 +108,7 @@ struct MaconFaultBit {
     const char   *code;       // code as shown on the OEM LCD / app (e.g. "P06")
     const char   *label;      // human-readable description
     FaultSeverity severity;
+    MaconFaultId  id;         // semantic identity (Unknown for the RUN indicator)
 };
 
 // The five Macon fault-bitfield register addresses.
@@ -54,11 +121,13 @@ extern const size_t         MACON_FAULT_BITS_COUNT;
 
 // A decoded, currently-active fault.
 struct MaconFault {
-    const char   *code;
-    const char   *label;
-    FaultSeverity severity;
-    uint16_t      reg;
-    uint8_t       bit;
+    const char      *code;
+    const char      *label;
+    FaultSeverity    severity;
+    uint16_t         reg;
+    uint8_t          bit;
+    MaconFaultId     id;      // semantic identity (for logic / resolution)
+    MaconFaultSiteId site;    // stable per-bit identity (for history / dedup)
 };
 
 // Decode active faults from the five raw fault-register bytes into `out`
@@ -112,5 +181,36 @@ size_t macon_fault_bits_for_code(const char *code, const MaconFaultBit **out,
 // bad arguments (null regs / null code).
 int macon_set_fault_by_code(uint16_t *regs, uint16_t base, size_t count,
                             const char *code, bool on);
+
+// ---------------------------------------------------------------------------
+// Semantic fault identity API (id <-> code/label/severity/resolution).
+//
+// This is the single source of truth that lets a consumer reference faults
+// WITHOUT knowing OEM codes or (reg, bit) positions. Resolution text lives here
+// too (moved out of the controller), keyed by id so multi-site codes cannot
+// drift.
+// ---------------------------------------------------------------------------
+
+// Map an OEM code string to its semantic id. Returns MaconFaultId::Unknown if
+// the code is not a known fault (including the "RUN" indicator).
+MaconFaultId macon_fault_id_from_code(const char *code);
+
+// Representative OEM code / label / severity for an id (nullptr / INFO if
+// Unknown). For multi-site codes these describe the shared code.
+const char   *macon_code_for_fault_id(MaconFaultId id);
+const char   *macon_label_for_fault_id(MaconFaultId id);
+FaultSeverity macon_severity_for_fault_id(MaconFaultId id);
+
+// Human-readable remediation text for a fault id. Never null: returns a generic
+// "contact the dealer" fallback for ids without specific guidance.
+const char   *macon_fault_resolution(MaconFaultId id);
+
+// Stable per-bit site identity for a (reg, bit). Opaque token; 0 if unknown.
+MaconFaultSiteId macon_fault_site_id(uint16_t reg, uint8_t bit);
+
+// True if the fault identified by `id` is active in the five raw fault bytes
+// (any of its sites lit). INFO / Unknown are never "active".
+bool macon_has_fault_id(uint8_t reg2007, uint8_t reg2125, uint8_t reg2126,
+                        uint8_t reg2127, uint8_t reg2128, MaconFaultId id);
 
 }  // namespace arctic
