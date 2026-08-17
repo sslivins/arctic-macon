@@ -56,6 +56,13 @@ enum class MaconField : uint8_t {
 // Run-state flags (bit-level fields decoded from icon/run registers).
 enum class MaconFlag : uint8_t { Fan, Cooling, Pump, UnitOn };
 
+// Wire address backing a settable numeric/enum field. Intended only for a
+// human-facing diagnostic dump (e.g. a CSV "address" column) that wants to show
+// where a value came from — the consumer still gets the value from its decoded
+// state, never by reading the register itself. Returns 0 if the field is not
+// backed by a single address.
+uint16_t macon_field_address(MaconField f);
+
 // Outcome of a set_temp()/set_value() call.
 enum class MaconSetResult : uint8_t {
     Ok,            // value stored exactly

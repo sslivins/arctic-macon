@@ -61,6 +61,11 @@ void flag_map(MaconFlag f, uint16_t *reg, uint8_t *mask) {
 
 // ---------------------------------------------------------------------------
 
+uint16_t macon_field_address(MaconField f) {
+    FieldMap m;
+    return field_map(f, &m) ? m.reg : 0;
+}
+
 void MaconImage::clear() {
     std::memset(values_, 0, sizeof(values_));
     std::memset(present_, 0, sizeof(present_));

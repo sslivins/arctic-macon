@@ -98,6 +98,19 @@ int main() {
     // Enum count matches the number of distinct fault ids reachable.
     CHECK(static_cast<uint16_t>(MaconFaultId::Count) == 31);
 
+    // --- macon_fault_bit_for_site (reverse of macon_fault_site_id) ----------
+    for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {
+        const MaconFaultBit &fb = MACON_FAULT_BITS[i];
+        if (fb.severity == FaultSeverity::INFO) continue;  // RUN has no site id
+        MaconFaultSiteId site = macon_fault_site_id(fb.reg, fb.bit);
+        const MaconFaultBit *back = macon_fault_bit_for_site(site);
+        CHECK(back != nullptr);
+        CHECK(back->reg == fb.reg && back->bit == fb.bit);
+        CHECK(back->id == fb.id);
+    }
+    CHECK(macon_fault_bit_for_site(0) == nullptr);
+    CHECK(macon_fault_bit_for_site(0xFFFF) == nullptr);
+
     if (g_failures) {
         std::printf("%d FAILURE(S)\n", g_failures);
         return 1;
