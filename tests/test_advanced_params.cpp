@@ -197,6 +197,44 @@ int main() {
     CHECK(advanced_enum_option_at(13, 0) == nullptr);
     CHECK(advanced_enum_option_for_wire(13, 0) == nullptr);
 
+    // --- opaque option ids (index<->wire, id-based write plan) --------------
+    // The option id is the stable list index; the library maps id<->wire so
+    // consumers (JSON API / UI) never handle raw RS485 codes.
+    {
+        // index_for_wire is the exact inverse of option_at(...)->wire for every
+        // option of every enum param (the bijection UIs rely on).
+        for (uint8_t ap = 14; ap <= 20; ++ap) {
+            const size_t n = advanced_enum_option_count(ap);
+            CHECK(n > 0);
+            for (size_t i = 0; i < n; ++i) {
+                const AdvEnumOption *opt = advanced_enum_option_at(ap, i);
+                CHECK(opt != nullptr);
+                CHECK(advanced_enum_option_index_for_wire(ap, opt->wire) == (int)i);
+            }
+        }
+        // Spot-check known K-ratio codes (wire order {0,1,2,4,8,12,16,20}).
+        CHECK(advanced_enum_option_index_for_wire(18, 0) == 0);
+        CHECK(advanced_enum_option_index_for_wire(18, 12) == 5);
+        CHECK(advanced_enum_option_index_for_wire(18, 20) == 7);
+        // A wire code that is not a valid reading has no id.
+        CHECK(advanced_enum_option_index_for_wire(18, 3) == -1);
+        // Non-enum / unknown params expose no option ids.
+        CHECK(advanced_enum_option_index_for_wire(13, 0) == -1);
+        CHECK(advanced_enum_option_index_for_wire(200, 0) == -1);
+
+        // id-based write plan reproduces the EXACT wire value of the selected
+        // option and runs the standard guardrail. AP20 id 4 == wire 8 -> reg2019.
+        AdvWritePlan plan{0xFFFF, 0xFFFF};
+        CHECK(advanced_prepare_write_option(20, 4, &plan) == AdvWriteResult::OK);
+        CHECK(plan.reg == 2019);
+        CHECK(plan.raw == 8);
+        // Out-of-range id, non-enum params, and unknown params are all rejected.
+        CHECK(advanced_prepare_write_option(20, advanced_enum_option_count(20), nullptr)
+              == AdvWriteResult::NOT_IN_ENUM);
+        CHECK(advanced_prepare_write_option(13, 0, nullptr) == AdvWriteResult::NOT_IN_ENUM);
+        CHECK(advanced_prepare_write_option(200, 0, nullptr) == AdvWriteResult::UNKNOWN_PARAM);
+    }
+
     // --- write-plan builder ------------------------------------------------
     {
         AdvWritePlan plan{0xFFFF, 0xFFFF};

@@ -357,6 +357,26 @@ const AdvEnumOption *advanced_enum_option_for_wire(uint8_t ap, int16_t wire) {
     return nullptr;
 }
 
+int advanced_enum_option_index_for_wire(uint8_t ap, int16_t wire) {
+    const AdvancedParam *p = advanced_param_lookup(ap);
+    if (!p || !p->enum_opts) return -1;
+    for (uint8_t i = 0; i < p->enum_opt_count; ++i) {
+        if (p->enum_opts[i].wire == wire) return (int)i;
+    }
+    return -1;
+}
+
+AdvWriteResult advanced_prepare_write_option(uint8_t ap, size_t option_index,
+                                             AdvWritePlan *out) {
+    const AdvancedParam *p = advanced_param_lookup(ap);
+    if (!p) return AdvWriteResult::UNKNOWN_PARAM;
+    if (!p->enum_opts || option_index >= p->enum_opt_count) {
+        return AdvWriteResult::NOT_IN_ENUM;
+    }
+    // Map the opaque id to its wire code and reuse the standard guardrail.
+    return advanced_prepare_write(ap, p->enum_opts[option_index].wire, out);
+}
+
 size_t advanced_category_count() { return kCategoryCount; }
 
 const char *advanced_category_at(size_t index) {
