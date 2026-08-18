@@ -1,9 +1,18 @@
 #include "macon_image.h"
 
+#include "macon_registers.h"
+
 #include <cstring>
 #include <initializer_list>
 
 namespace arctic {
+
+// The MaconImage window bounds are declared as plain literals in the public
+// header so that header carries no register-map dependency. Keep them honest:
+static_assert(MaconImage::window_base() == HOLDING_START,
+              "MaconImage window base drifted from HOLDING_START");
+static_assert(MaconImage::window_count() == INPUT_START + INPUT_COUNT - HOLDING_START,
+              "MaconImage window count drifted from the register map");
 
 // ---------------------------------------------------------------------------
 // Field -> wire mapping. Kind determines the inverse scaling / range applied
