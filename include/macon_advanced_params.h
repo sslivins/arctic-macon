@@ -239,6 +239,32 @@ const AdvEnumOption *advanced_enum_option_at(uint8_t ap, size_t index);
 const AdvEnumOption *advanced_enum_option_for_wire(uint8_t ap, int16_t wire);
 
 // ---------------------------------------------------------------------------
+// Opaque option identifiers.
+//
+// An "option id" is the option's stable index in the param's option list
+// [0, advanced_enum_option_count(ap)).  It carries NO wire/protocol meaning:
+// the library maps id<->wire internally so consumers (JSON API, on-device UI,
+// web UI) can present and select enum choices WITHOUT ever handling a raw RS485
+// wire code.  This keeps AdvEnumOption::wire an implementation detail of the
+// library rather than something re-exposed by the controller.
+// ---------------------------------------------------------------------------
+
+/// Opaque option id (list index) of the option whose wire code == `wire` for
+/// AP `ap`, or -1 if the param has no options or none matches.  Use to turn a
+/// freshly read enum wire value into the opaque id a UI displays/selects.
+int advanced_enum_option_index_for_wire(uint8_t ap, int16_t wire);
+
+/// Build a validated write plan for AP `ap` selecting enum option `option_index`
+/// (the opaque id from advanced_enum_option_index_for_wire / the option list).
+/// Maps the id to its wire code internally and runs the full
+/// advanced_prepare_write() guardrail.  Returns UNKNOWN_PARAM if `ap` is
+/// unknown, NOT_IN_ENUM if the param has no options or the index is out of
+/// range, otherwise the guardrail result.  The library performs NO IO — the
+/// caller issues the actual bus write.  `out` may be null (pure validity check).
+AdvWriteResult advanced_prepare_write_option(uint8_t ap, size_t option_index,
+                                             AdvWritePlan *out);
+
+// ---------------------------------------------------------------------------
 // Categories — canonical display grouping/ordering, shared by every consumer
 // (controller UI, sniffer UI) so both render the advanced block identically.
 // Every AdvancedParam::category equals one of these strings.
