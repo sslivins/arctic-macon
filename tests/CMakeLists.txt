@@ -39,6 +39,10 @@ add_executable(test_macon_master test_macon_master.cpp)
 target_link_libraries(test_macon_master PRIVATE arctic_macon)
 add_test(NAME macon_master COMMAND test_macon_master)
 
+add_executable(test_macon_listener test_macon_listener.cpp)
+target_link_libraries(test_macon_listener PRIVATE arctic_macon)
+add_test(NAME macon_listener COMMAND test_macon_listener)
+
 add_executable(test_faults test_faults.cpp)
 target_link_libraries(test_faults PRIVATE arctic_macon)
 add_test(NAME faults COMMAND test_faults)
