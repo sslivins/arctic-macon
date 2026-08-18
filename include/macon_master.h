@@ -24,6 +24,8 @@
 
 #include "macon_link.h"   // MaconTransport, MaconLink, MaconResult
 #include "tuya_codec.h"   // RegWindow, KNOWN_WINDOWS
+#include "macon_image.h"  // MaconImage, MaconCoverage
+#include "macon_listener.h"  // MaconObservedCatalog
 
 namespace arctic {
 
@@ -107,6 +109,43 @@ private:
     MaconLink         link_;
     int               resp_timeout_ms_;
     int               poll_deadline_ms_;
+};
+
+// ---------------------------------------------------------------------------
+// MaconImageSink — a MaconWindowSink that ingests decoded windows straight into
+// an opaque MaconImage and catalogs observed windows, so the active-master path
+// (like the passive listener) hands the consumer only semantic coverage, never
+// a register address. The consumer feeds this sink to MaconMaster, then after a
+// poll cycle calls take_coverage() to learn whether to re-decode the image.
+//
+// `image` and `catalog` must outlive the sink. NOT internally synchronised: the
+// consumer serialises poll cycles (and thus sink callbacks) with its bus mutex,
+// and holds its image mutex across the poll + take_coverage().
+// ---------------------------------------------------------------------------
+class MaconImageSink : public MaconWindowSink {
+public:
+    MaconImageSink(MaconImage &image, MaconObservedCatalog &catalog)
+        : image_(image), catalog_(catalog) {}
+
+    void on_window(uint16_t reg_base, const uint8_t *data, size_t len) override;
+    void on_observed(uint16_t field_a, uint16_t field_b,
+                     const uint8_t *payload, size_t payload_len) override;
+
+    /// Wall-clock feed for observed-window timestamps (optional; defaults 0).
+    void set_now_ms(uint32_t now_ms) { now_ms_ = now_ms; }
+
+    /// Return the coverage accumulated since the last call and reset it. Also
+    /// clears the "any window seen" flag; check .status_updated/.telemetry_updated
+    /// (or any_since_reset()) to decide whether to re-decode + bookkeep.
+    MaconCoverage take_coverage();
+    bool any_since_reset() const { return any_; }
+
+private:
+    MaconImage           &image_;
+    MaconObservedCatalog &catalog_;
+    MaconCoverage         coverage_;
+    bool                  any_    = false;
+    uint32_t              now_ms_ = 0;
 };
 
 }  // namespace arctic

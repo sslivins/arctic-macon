@@ -268,6 +268,47 @@ int main() {
         CHECK(m.write_register(2013, 45) == MaconResult::Ok);
     }
 
+    // ----------------------------------------------------------------------
+    // MaconImageSink: driving the master through it ingests decoded windows
+    // into the image (semantic coverage, no reg_base leaked to the consumer)
+    // and catalogs the observed window.
+    // ----------------------------------------------------------------------
+    {
+        FakeTransport t;
+        FakeClock clk;
+        MaconImage img;
+        MaconObservedCatalog cat;
+        MaconImageSink sink(img, cat);
+        sink.set_now_ms(1234);
+
+        uint8_t payload[50];
+        std::memset(payload, 0, sizeof(payload));
+        payload[0] = 24;  // telemetry cooling setpoint
+        uint8_t resp[80];
+        size_t rn = build_window_response(resp, sizeof(resp), 0, 50, payload);
+        t.queue(resp, rn);
+
+        MaconMaster m(t, clk, sink);
+        CHECK(m.poll_telemetry() == true);
+
+        CHECK(sink.any_since_reset() == true);
+        MaconCoverage cov = sink.take_coverage();
+        CHECK(cov.telemetry_updated == true);
+        CHECK(sink.any_since_reset() == false);  // reset by take_coverage()
+
+        MaconState ms;
+        img.decode(&ms);
+        CHECK(ms.cooling_setpoint_valid == true);
+        CHECK(ms.cooling_setpoint == 24);
+
+        CHECK(cat.count() == 1);
+        const MaconObservedWindow *w = cat.at(0);
+        CHECK(w != nullptr);
+        CHECK(w->field_a == 0 && w->field_b == 50);
+        CHECK(w->known == 1);
+        CHECK(w->last_ms == 1234);
+    }
+
     if (g_failures) {
         std::printf("test_macon_master: %d failure(s)\n", g_failures);
         return 1;

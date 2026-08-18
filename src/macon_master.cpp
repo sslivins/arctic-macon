@@ -200,4 +200,30 @@ MaconResult MaconMaster::write_register(uint16_t register_address, uint8_t value
     return finish_write(link_.write_register(register_address, value));
 }
 
+// ---------------------------------------------------------------------------
+// MaconImageSink
+// ---------------------------------------------------------------------------
+void MaconImageSink::on_window(uint16_t reg_base, const uint8_t *data, size_t len)
+{
+    const MaconCoverage cov = image_.ingest_bytes(reg_base, data, len);
+    coverage_.status_updated    |= cov.status_updated;
+    coverage_.telemetry_updated |= cov.telemetry_updated;
+    any_ = true;
+}
+
+void MaconImageSink::on_observed(uint16_t field_a, uint16_t field_b,
+                                 const uint8_t *payload, size_t payload_len)
+{
+    // Master only polls known windows, so every observed response maps.
+    catalog_.record(field_a, field_b, 1, payload, payload_len, now_ms_);
+}
+
+MaconCoverage MaconImageSink::take_coverage()
+{
+    const MaconCoverage out = coverage_;
+    coverage_ = MaconCoverage{};
+    any_ = false;
+    return out;
+}
+
 }  // namespace arctic

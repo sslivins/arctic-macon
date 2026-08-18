@@ -15,6 +15,7 @@ set(MACON_SRCS
     "src/macon_state.cpp"
     "src/macon_link.cpp"
     "src/macon_master.cpp"
+    "src/macon_listener.cpp"
     "src/macon_faults.cpp"
     "src/macon_image.cpp")
 
