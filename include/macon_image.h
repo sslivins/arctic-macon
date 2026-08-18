@@ -28,7 +28,6 @@
 
 #include "macon_state.h"
 #include "macon_faults.h"
-#include "macon_registers.h"
 
 namespace arctic {
 
@@ -120,10 +119,12 @@ public:
     }
 
 private:
-    // Flat cache spanning both the holding (2000..2057) and telemetry
-    // (2093..2142) windows; bounds come from macon_registers.h, not magic.
-    static constexpr uint16_t kBase  = HOLDING_START;                       // 2000
-    static constexpr uint16_t kCount = INPUT_START + INPUT_COUNT - HOLDING_START; // 2000..2142
+    // Flat cache spanning both the holding and telemetry windows. The bounds
+    // are declared here as library-owned literals so this public header carries
+    // no register-map dependency; macon_image.cpp static_asserts them against
+    // macon_registers.h so they can never silently drift.
+    static constexpr uint16_t kBase  = 2000;   // holding-window base
+    static constexpr uint16_t kCount = 143;    // spans both windows through telemetry
 
     // Returns index for addr, or -1 if outside the window.
     int index_of(uint16_t addr) const;
