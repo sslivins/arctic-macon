@@ -68,6 +68,13 @@ const char *working_mode_name(MaconWorkingMode mode);
 // Decoded state
 // ---------------------------------------------------------------------------
 
+// Assumed full-scale fan speed in RPM. The real hardware maximum is not yet
+// known (the raw reg2003 range has only been observed up to ~72 => ~720 RPM);
+// consumers should size fan gauges/bars as a percentage of THIS value rather
+// than hardcoding a max, so the single place to revise once a live maximum is
+// measured is here in the library.
+constexpr uint16_t MACON_FAN_SPEED_MAX_RPM = 1000;
+
 // A field's *_valid flag is true when the source register was present in the
 // decoded window. (With the current bare-array input every in-range register is
 // "present"; precise per-register presence tracking arrives with the Phase 2
@@ -90,6 +97,7 @@ struct MaconState {
     bool     cooling_on_valid;
     bool     fan_on;
     uint16_t fan_level;         // reg2003 A10 DC motor speed in RPM (raw ×10)
+    uint16_t fan_speed_max;     // full-scale fan speed in RPM (MACON_FAN_SPEED_MAX_RPM)
 
     // Temperatures (signed whole °C).
     int16_t water_tank_c;       bool water_tank_valid;      // reg2008 o1
