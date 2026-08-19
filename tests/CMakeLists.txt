@@ -54,3 +54,7 @@ add_test(NAME fault_identity COMMAND test_fault_identity)
 add_executable(test_image test_image.cpp)
 target_link_libraries(test_image PRIVATE arctic_macon)
 add_test(NAME image COMMAND test_image)
+
+add_executable(test_bus_params test_bus_params.cpp)
+target_link_libraries(test_bus_params PRIVATE arctic_macon)
+add_test(NAME bus_params COMMAND test_bus_params)
