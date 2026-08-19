@@ -56,7 +56,7 @@ int main() {
     set_reg(regs, REG_FAULT_RUNSTATE, 0x20);    // running
     set_reg(regs, REG_STATUS_BYTE, 0x04 | 0x08);// compressor + pump
     set_reg(regs, REG_ICON_BITS2, 0x10);        // fan on, no defrost
-    set_reg(regs, REG_DC_MOTOR_SPEED, 45);      // fan level
+    set_reg(regs, REG_DC_MOTOR_SPEED, 45);      // raw fan level => 450 RPM (×10)
     set_reg(regs, REG_OUTLET_WATER_TEMP, 45);
     set_reg(regs, REG_INLET_WATER_TEMP, 38);
     set_reg(regs, REG_OUTDOOR_AMBIENT_TEMP, (uint16_t)(uint8_t)(int8_t)-7); // sub-zero
@@ -85,7 +85,7 @@ int main() {
     CHECK(st.pump_on);
     CHECK(!st.defrost_on);
     CHECK(st.fan_on);
-    CHECK(st.fan_level == 45);
+    CHECK(st.fan_level == 450);   // raw 45 ×10 => RPM
     CHECK(st.outlet_c == 45);
     CHECK(st.inlet_c == 38);
     CHECK(st.outdoor_ambient_c == -7);          // signed byte decode

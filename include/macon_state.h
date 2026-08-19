@@ -89,7 +89,7 @@ struct MaconState {
     bool     cooling_on;
     bool     cooling_on_valid;
     bool     fan_on;
-    uint16_t fan_level;         // reg2003 A10 DC motor speed (raw level)
+    uint16_t fan_level;         // reg2003 A10 DC motor speed in RPM (raw ×10)
 
     // Temperatures (signed whole °C).
     int16_t water_tank_c;       bool water_tank_valid;      // reg2008 o1

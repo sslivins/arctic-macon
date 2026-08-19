@@ -41,7 +41,7 @@ bool field_map(MaconField f, FieldMap *m) {
         case MaconField::OutdoorAmbientTemp: *m = { REG_OUTDOOR_AMBIENT_TEMP, Kind::SignedTemp }; return true;
         case MaconField::IpmTemp:            *m = { REG_IPM_TEMP,             Kind::SignedTemp }; return true;
         case MaconField::CompressorFreq:     *m = { REG_COMPRESSOR_FREQ,      Kind::Raw };        return true;
-        case MaconField::FanLevel:           *m = { REG_DC_MOTOR_SPEED,       Kind::Raw };        return true;
+        case MaconField::FanLevel:           *m = { REG_DC_MOTOR_SPEED,       Kind::DivTen };     return true;
         case MaconField::AcVoltage:          *m = { REG_AC_VOLTAGE,           Kind::DivTen };     return true;
         case MaconField::AcCurrent:          *m = { REG_AC_CURRENT,           Kind::Raw };        return true;
         case MaconField::DcVoltage:          *m = { REG_DC_BUS_VOLTAGE,       Kind::DivTen };     return true;
