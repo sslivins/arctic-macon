@@ -119,6 +119,7 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     // a tachometer — assumed ×10 by physical plausibility (raw ~0..72 => 0..720
     // RPM); revise here if a live measurement contradicts it.
     out->fan_level     = static_cast<uint16_t>(fan_raw * 10);   // ×10 => RPM
+    out->fan_speed_max = MACON_FAN_SPEED_MAX_RPM;               // assumed full scale
 
     // --- temperatures (signed whole °C) -----------------------------------
     out->water_tank_c      = s8(val(REG_WATER_TANK_TEMP, &out->water_tank_valid));       // reg2008 o1

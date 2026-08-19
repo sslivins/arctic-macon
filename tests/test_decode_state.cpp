@@ -86,6 +86,7 @@ int main() {
     CHECK(!st.defrost_on);
     CHECK(st.fan_on);
     CHECK(st.fan_level == 450);   // raw 45 ×10 => RPM
+    CHECK(st.fan_speed_max == 1000);   // library-provided assumed full scale
     CHECK(st.outlet_c == 45);
     CHECK(st.inlet_c == 38);
     CHECK(st.outdoor_ambient_c == -7);          // signed byte decode
