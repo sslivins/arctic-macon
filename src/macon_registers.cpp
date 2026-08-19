@@ -28,7 +28,7 @@ static const RegEntry s_registers[] = {
     // "Holding" window (base 2000) — telemetry on the Macon unit
     { 2000, { "AC Current",             "A",     1.0f,   false } },  // A4
     { 2001, { "DC Bus Voltage",         "V",     10.0f,  false } },  // A7
-    { 2003, { "DC Motor Speed",         nullptr, 1.0f,   false } },  // A10
+    { 2003, { "DC Motor Speed",         "RPM",   10.0f,  false } },  // A10
     { 2007, { "Fault(RunState)",       nullptr, 1.0f,   false } },  // bitfield
     { 2008, { "Water Tank Temp",        "°C",    1.0f,   true  } },  // o1
     { 2012, { "Hot-Water Ceiling",      "°C",    1.0f,   false } },  // AP13 max hot-water temp (ceiling)
