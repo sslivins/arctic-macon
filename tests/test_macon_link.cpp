@@ -140,6 +140,50 @@ int main() {
     }
 
     // ----------------------------------------------------------------------
+    // set_working_mode: wire addr 0x0003 carries the OEM enum value.
+    // ----------------------------------------------------------------------
+    {
+        const struct { MaconWorkingMode mode; uint8_t wire; } cases[] = {
+            {MaconWorkingMode::Cooling, 0},
+            {MaconWorkingMode::FloorHeating, 1},
+            {MaconWorkingMode::FanCoilHeating, 2},
+            {MaconWorkingMode::HotWater, 5},
+            {MaconWorkingMode::Auto, 6},
+        };
+        for (const auto &c : cases) {
+            FakeTransport t;
+            uint8_t ack[16];
+            size_t an = tuya_codec::encode_command_ack(ack, sizeof(ack), 0x0003, 1);
+            t.queue(ack, an);
+
+            MaconLink link(t);
+            CHECK(link.set_working_mode(c.mode) == MaconResult::Ok);
+
+            uint8_t want[16];
+            uint8_t data = c.wire;
+            size_t wn = tuya_codec::encode_command(want, sizeof(want), 0x0003, 1, &data);
+            CHECK(t.written.size() == wn);
+            CHECK(std::memcmp(t.written.data(), want, wn) == 0);
+        }
+    }
+
+    // Unknown is refused without touching the bus.
+    {
+        FakeTransport t;
+        MaconLink link(t);
+        CHECK(link.set_working_mode(MaconWorkingMode::Unknown) ==
+              MaconResult::UnsupportedRegister);
+        CHECK(t.written.empty());
+    }
+
+    // A missing ACK is reported, not silently treated as success.
+    {
+        FakeTransport t;
+        MaconLink link(t);
+        CHECK(link.set_working_mode(MaconWorkingMode::Auto) == MaconResult::NoResponse);
+    }
+
+    // ----------------------------------------------------------------------
     // Negative celsius is carried as a signed byte.
     // ----------------------------------------------------------------------
     {

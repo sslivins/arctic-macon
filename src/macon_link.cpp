@@ -37,6 +37,20 @@ MaconResult MaconLink::set_hot_water_setpoint(int celsius) {
     return write_setpoint(0x0002, celsius);
 }
 
+MaconResult MaconLink::set_working_mode(MaconWorkingMode mode) {
+    switch (mode) {
+        case MaconWorkingMode::Cooling:
+        case MaconWorkingMode::FloorHeating:
+        case MaconWorkingMode::FanCoilHeating:
+        case MaconWorkingMode::HotWater:
+        case MaconWorkingMode::Auto:
+            // Working mode lives at wire addr 0x0003 (reg2096).
+            return write_byte(0x0003, static_cast<uint8_t>(mode));
+        default:
+            return MaconResult::UnsupportedRegister;
+    }
+}
+
 MaconResult MaconLink::write_register(uint16_t register_address, uint8_t value) {
     for (size_t i = 0; i < tuya_codec::KNOWN_WINDOWS_COUNT; ++i) {
         const tuya_codec::RegWindow &win = tuya_codec::KNOWN_WINDOWS[i];

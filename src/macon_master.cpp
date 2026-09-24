@@ -194,6 +194,12 @@ MaconResult MaconMaster::set_hot_water_setpoint(int celsius)
     return finish_write(link_.set_hot_water_setpoint(celsius));
 }
 
+MaconResult MaconMaster::set_working_mode(MaconWorkingMode mode)
+{
+    tx_.flush_rx();
+    return finish_write(link_.set_working_mode(mode));
+}
+
 MaconResult MaconMaster::write_register(uint16_t register_address, uint8_t value)
 {
     tx_.flush_rx();
