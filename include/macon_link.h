@@ -27,6 +27,7 @@
 #include <cstddef>
 
 #include "tuya_codec.h"
+#include "macon_state.h"  // MaconWorkingMode
 
 namespace arctic {
 
@@ -97,6 +98,13 @@ public:
 
     /// Hot-water setpoint — wire addr 0x0002 (reg2095). Confirmed live.
     MaconResult set_hot_water_setpoint(int celsius);
+
+    /// Selected working mode — wire addr 0x0003 (reg2096), same fc=0x06
+    /// single-byte write as the setpoints. Auto (6) was captured from the OEM
+    /// controller and Hot Water (5) is read back live; Cooling / Floor Heating /
+    /// Fan-Coil Heating use the OEM enum values (0/1/2). Returns
+    /// UnsupportedRegister for MaconWorkingMode::Unknown without transmitting.
+    MaconResult set_working_mode(MaconWorkingMode mode);
 
     /// Write one byte to a verified Macon register and wait for its ACK.
     ///

@@ -98,6 +98,7 @@ public:
     // thread-safe: the consumer holds its bus mutex across the call.
     MaconResult set_cooling_setpoint(int celsius);
     MaconResult set_hot_water_setpoint(int celsius);
+    MaconResult set_working_mode(MaconWorkingMode mode);
     MaconResult write_register(uint16_t register_address, uint8_t value);
 
 private:

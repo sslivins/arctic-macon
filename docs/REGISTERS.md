@@ -73,7 +73,7 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | **Hot-water ceiling** | `reg2012` (Cn13) | The manual's Cn13 = "Highest setting temperature of hot water, heating mode" (range 20~55 °C, default 50). This is the mainboard's enforced **ceiling**, NOT the live user setpoint. Dialing the display setpoint down did not move reg2012 (stayed at 50). |
 
 `MaconLink` (`macon_link.{h,cpp}`) exposes the intent-named transactions:
-`set_cooling_setpoint()` / `set_hot_water_setpoint()` (write + ACK) and
+`set_cooling_setpoint()` / `set_hot_water_setpoint()` / `set_working_mode()` (write + ACK) and
 `read_cooling_setpoint()` / `read_hot_water_setpoint()` / `read_heating_setpoint()`
 (reg2094, untested).
 
@@ -84,6 +84,7 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2093 | — | Cooling setpoint | signed °C (wire 0x0000) |
 | 2094 | — | Aux/heating setpoint | signed °C (wire 0x0001, **UNVERIFIED**) |
 | 2095 | — | Hot-water setpoint | signed °C (wire 0x0002) |
+| 2096 | — | Selected working mode | 0 cooling, 1 floor heat, 2 fan-coil heat, 5 hot water, 6 auto (wire 0x0003, writable) |
 | 2101 | A13 | AC input voltage | ×10 = V |
 | 2104 | A5  | Main EEV | steps |
 | 2113 | A8  | IPM temp | signed °C |
