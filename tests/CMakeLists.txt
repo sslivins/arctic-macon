@@ -58,3 +58,11 @@ add_test(NAME image COMMAND test_image)
 add_executable(test_bus_params test_bus_params.cpp)
 target_link_libraries(test_bus_params PRIVATE arctic_macon)
 add_test(NAME bus_params COMMAND test_bus_params)
+
+add_executable(test_semantic test_semantic.cpp)
+target_link_libraries(test_semantic PRIVATE arctic_macon)
+add_test(NAME semantic COMMAND test_semantic)
+
+add_executable(test_conformance test_conformance.cpp)
+target_link_libraries(test_conformance PRIVATE arctic_macon)
+add_test(NAME conformance COMMAND test_conformance)

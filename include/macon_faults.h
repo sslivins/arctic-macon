@@ -219,4 +219,19 @@ const MaconFaultBit *macon_fault_bit_for_site(MaconFaultSiteId site);
 bool macon_has_fault_id(uint8_t reg2007, uint8_t reg2125, uint8_t reg2126,
                         uint8_t reg2127, uint8_t reg2128, MaconFaultId id);
 
+// ---------------------------------------------------------------------------
+// Catalog enumeration (for consumers that publish the fault catalog, e.g. the
+// simulator's REST API and end-to-end tests). Iterate semantic faults with
+//   for (uint16_t i = 0; i < (uint16_t)MaconFaultId::Count; ++i) { ... }
+// and each fault's physical sites with macon_fault_sites_for_id().
+// ---------------------------------------------------------------------------
+
+// Collect the site tokens of every physical bit carrying `id` into `out` (up to
+// `max`). Returns the total number of sites (1 for most faults, 2 for E28/E05).
+size_t macon_fault_sites_for_id(MaconFaultId id, MaconFaultSiteId *out, size_t max);
+
+// Canonical external severity name: "info", "warning", "error" (FAULT) or
+// "critical". Every consumer's API reports severity with these strings.
+const char *macon_fault_severity_name(FaultSeverity severity);
+
 }  // namespace arctic

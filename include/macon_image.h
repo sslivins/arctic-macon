@@ -53,7 +53,9 @@ enum class MaconField : uint8_t {
 };
 
 // Run-state flags (bit-level fields decoded from icon/run registers).
-enum class MaconFlag : uint8_t { Fan, Cooling, Pump, UnitOn };
+// CompressorIcon is the LCD compressor icon only: the controller's "compressor
+// running" state follows CompressorFreq > 0, not this bit.
+enum class MaconFlag : uint8_t { Fan, Cooling, Pump, UnitOn, Defrost, CompressorIcon };
 
 // Wire address backing a settable numeric/enum field. Intended only for a
 // human-facing diagnostic dump (e.g. a CSV "address" column) that wants to show
@@ -67,6 +69,7 @@ enum class MaconSetResult : uint8_t {
     Ok,            // value stored exactly
     Truncated,     // stored, but the wire encoding lost precision or clamped
     UnknownField,  // field not settable / not mapped
+    OutOfRange,    // rejected by a strict setter; the image was NOT modified
 };
 
 // Which decode-relevant windows an ingest() touched, so the consumer can manage
@@ -95,9 +98,28 @@ public:
     MaconSetResult set_value(MaconField f, int32_t value);
     void set_flag(MaconFlag f, bool on);
     void set_working_mode(MaconWorkingMode mode);
+    // Live operating direction (reg2049), set by the unit itself — distinct
+    // from the user-selected working mode. Unknown is ignored.
+    void set_operating_direction(MaconMode mode);
     void set_fault(MaconFaultId id, bool active);
     int  set_fault_by_code(const char *code, bool active); // code = HTTP data
+    // Set/clear exactly one physical fault site (see macon_fault_site_id).
+    // Returns false for an unknown site token.
+    bool set_fault_site(MaconFaultSiteId site, bool active);
     void clear_faults();
+
+    // --- slave-side wire I/O (simulator) ------------------------------------
+    // Mark every register of every known Tuya window present (value 0), so the
+    // image decodes the way a master that ingested full windows would see it.
+    void fill_baseline();
+    // Serve a read: copy the payload of wire window (field_a, field_b) into
+    // out. Returns the payload length, or 0 for an unknown window / small cap.
+    size_t read_window(uint16_t field_a, uint16_t field_b,
+                       uint8_t *out, size_t cap) const;
+    // Apply a master fc=0x06 write of `len` bytes at wire address `wire_addr`,
+    // exactly as the real unit reflects it. Returns false (image untouched) if
+    // any byte falls outside a known window.
+    bool apply_write(uint16_t wire_addr, const uint8_t *data, size_t len);
 
     // --- raw register debug passthrough -------------------------------------
     // Address-based poke/peek for a raw-register debug endpoint. The image owns

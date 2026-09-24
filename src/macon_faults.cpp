@@ -198,6 +198,30 @@ bool macon_has_fault_id(uint8_t r2007, uint8_t r2125, uint8_t r2126,
 
 // ---------------------------------------------------------------------------
 
+size_t macon_fault_sites_for_id(MaconFaultId id, MaconFaultSiteId *out, size_t max)
+{
+    if (id == MaconFaultId::Unknown) return 0;
+    size_t n = 0;
+    for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {
+        const MaconFaultBit &fb = MACON_FAULT_BITS[i];
+        if (fb.id != id || fb.severity == FaultSeverity::INFO) continue;
+        if (out && n < max) out[n] = macon_fault_site_id(fb.reg, fb.bit);
+        ++n;
+    }
+    return n;
+}
+
+const char *macon_fault_severity_name(FaultSeverity severity)
+{
+    switch (severity) {
+        case FaultSeverity::INFO:     return "info";
+        case FaultSeverity::WARNING:  return "warning";
+        case FaultSeverity::FAULT:    return "error";
+        case FaultSeverity::CRITICAL: return "critical";
+    }
+    return "unknown";
+}
+
 const MaconFaultBit *macon_fault_bits_for_reg(uint16_t reg, size_t *count)
 {
     const MaconFaultBit *first = nullptr;

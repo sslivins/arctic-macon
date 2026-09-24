@@ -94,7 +94,7 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2127 | — | Fault: electrical/power-stage | bitfield |
 | 2128 | — | Fault: refrigerant/protection (P-codes) | bitfield |
 | 2129 | — | Icon bits #2 | bit1 defrost, bit4 fan |
-| 2130 | — | Status | bit2 compressor, bit3 pump |
+| 2130 | — | Status | bit2 compressor *icon* (not "running" — use frequency > 0), bit3 pump |
 | 2132 | o3  | Outlet (supply) water temp | signed °C |
 | 2133 | o2  | Inlet (return) water temp | signed °C |
 | 2134 | o4  | Outdoor ambient temp | signed °C |
@@ -119,6 +119,24 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 The installer **Cn** advanced-parameter block (`reg = 2000 + Cn`, roughly
 `reg2013 … reg2057`) is documented and guarded separately in
 `macon_advanced_params.{h,cpp}` (validate-only, reject-not-clamp; no write path).
+
+## Named fields (semantic API)
+
+Consumers should not hard-code the tables above. `macon_fields.h` exposes each
+field by a stable name (e.g. `outlet_water_temp`, `fan_speed`, `fan_on`,
+`working_mode`, `operating_direction`) with its unit, range and step;
+`macon_field_set()` rejects out-of-range or off-step values in strict mode and
+leaves the image untouched. Faults are addressed by code (every site of the
+code) or by a single physical site (`macon_fault_sites_for_id`,
+`MaconImage::set_fault_site`) — E28 and E05 each have two sites. The RUN bit
+(reg2007 bit5) is informational and is not a fault site.
+
+`macon_layout_fingerprint()` hashes the observable field→wire mapping and
+`macon_catalog_fingerprint()` hashes names, ranges and the fault catalog; a
+simulator and controller that report equal fingerprints and
+`MACON_SEMANTIC_API_VERSION` agree on the whole map. `tests/test_conformance.cpp`
+pins the library to real OEM capture bytes so that agreement can't hide a
+shared mistake.
 
 ## Fault registers
 
