@@ -110,7 +110,7 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 |-----|------|-------|---------------|
 | 2000 | A4  | AC input current | A |
 | 2001 | A7  | DC bus voltage | ×10 = V |
-| 2003 | A10 | DC (fan) motor speed | ×10 = RPM |
+| 2003 | A10 | DC (fan) motor speed | ×10 = RPM (tach-verified: raw 70 = 700 RPM) |
 | 2007 | — | Run-state / fault code | `0x00` off, `0x20` hot-water RUN, low/high = P-faults |
 | 2008 | o1  | Water tank temp | signed °C (real immersed DHW probe) |
 | 2012 | Cn13 | Hot-water ceiling | see setpoints section |

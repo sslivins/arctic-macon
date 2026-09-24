@@ -115,9 +115,8 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     out->cooling_on_valid = icon2_valid;
     out->fan_on        = (icon_bits2 & 0x10) != 0;  // reg2129 bit4
     // reg2003 A10 DC fan-motor speed. The raw byte is a tens-of-RPM level; ×10
-    // yields RPM (same convention as A13/A7 voltage). Scale unverified against
-    // a tachometer — assumed ×10 by physical plausibility (raw ~0..72 => 0..720
-    // RPM); revise here if a live measurement contradicts it.
+    // yields RPM (same convention as A13/A7 voltage). Scale verified with a
+    // handheld tachometer on HP2 (2026-09-24): raw 70 => 700 RPM measured.
     out->fan_level     = static_cast<uint16_t>(fan_raw * 10);   // ×10 => RPM
     out->fan_speed_max = MACON_FAN_SPEED_MAX_RPM;               // assumed full scale
 
