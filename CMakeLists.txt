@@ -17,7 +17,8 @@ set(MACON_SRCS
     "src/macon_master.cpp"
     "src/macon_listener.cpp"
     "src/macon_faults.cpp"
-    "src/macon_image.cpp")
+    "src/macon_image.cpp"
+    "src/macon_fields.cpp")
 
 if(ESP_PLATFORM)
     idf_component_register(

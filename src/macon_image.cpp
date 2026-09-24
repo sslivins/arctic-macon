@@ -1,6 +1,7 @@
 #include "macon_image.h"
 
 #include "macon_registers.h"
+#include "tuya_codec.h"
 
 #include <cstring>
 #include <initializer_list>
@@ -62,6 +63,8 @@ void flag_map(MaconFlag f, uint16_t *reg, uint8_t *mask) {
         case MaconFlag::Cooling: *reg = REG_ICON_BITS2;    *mask = 0x04; return;  // reg2129 bit2
         case MaconFlag::Pump:    *reg = REG_STATUS_BYTE;   *mask = 0x08; return;  // reg2130 bit3
         case MaconFlag::UnitOn:  *reg = REG_FAULT_RUNSTATE; *mask = 0x20; return; // reg2007 bit5
+        case MaconFlag::Defrost: *reg = REG_ICON_BITS2;    *mask = 0x02; return;  // reg2129 bit1
+        case MaconFlag::CompressorIcon: *reg = REG_STATUS_BYTE; *mask = 0x04; return; // reg2130 bit2
     }
     *reg = 0; *mask = 0;
 }
@@ -174,6 +177,71 @@ void MaconImage::set_flag(MaconFlag f, bool on) {
 
 void MaconImage::set_working_mode(MaconWorkingMode mode) {
     put(REG_WORKING_MODE, static_cast<uint16_t>(static_cast<uint8_t>(mode)));
+}
+
+void MaconImage::set_operating_direction(MaconMode mode) {
+    if (mode == MaconMode::Unknown) return;
+    put(REG_OPERATING_MODE, mode == MaconMode::Cooling ? MODE_COOL_BIT : 0);
+}
+
+bool MaconImage::set_fault_site(MaconFaultSiteId site, bool active) {
+    const MaconFaultBit *fb = macon_fault_bit_for_site(site);
+    if (fb == nullptr || fb->severity == FaultSeverity::INFO) return false;
+    const int idx = index_of(fb->reg);
+    if (idx < 0) return false;
+    const uint16_t mask = static_cast<uint16_t>(1u << fb->bit);
+    if (active) values_[idx] |= mask;
+    else        values_[idx] &= static_cast<uint16_t>(~mask);
+    values_[idx] = static_cast<uint16_t>(values_[idx] & 0xFF);
+    present_[idx] = true;
+    return true;
+}
+
+void MaconImage::fill_baseline() {
+    for (size_t w = 0; w < tuya_codec::KNOWN_WINDOWS_COUNT; ++w) {
+        const tuya_codec::RegWindow &win = tuya_codec::KNOWN_WINDOWS[w];
+        const uint16_t n = static_cast<uint16_t>(win.field_b - win.prefix_len);
+        for (uint16_t i = 0; i < n; ++i) {
+            const int idx = index_of(static_cast<uint16_t>(win.reg_base + i));
+            if (idx >= 0) present_[idx] = true;
+        }
+    }
+}
+
+size_t MaconImage::read_window(uint16_t field_a, uint16_t field_b,
+                               uint8_t *out, size_t cap) const {
+    const tuya_codec::RegWindow *win = tuya_codec::find_window(field_a, field_b);
+    if (win == nullptr || out == nullptr || cap < win->field_b) return 0;
+    std::memset(out, 0, win->field_b);   // static prefix bytes (none today) read as 0
+    for (uint16_t i = win->prefix_len; i < win->field_b; ++i) {
+        const int idx = index_of(static_cast<uint16_t>(win->reg_base + i - win->prefix_len));
+        out[i] = idx >= 0 ? static_cast<uint8_t>(values_[idx]) : 0;
+    }
+    return win->field_b;
+}
+
+bool MaconImage::apply_write(uint16_t wire_addr, const uint8_t *data, size_t len) {
+    if (data == nullptr || len == 0) return false;
+    // Resolve every byte first so a partially-out-of-window write changes nothing.
+    int idx[64];
+    if (len > sizeof(idx) / sizeof(idx[0])) return false;
+    for (size_t i = 0; i < len; ++i) {
+        const uint32_t a = static_cast<uint32_t>(wire_addr) + i;
+        idx[i] = -1;
+        for (size_t w = 0; w < tuya_codec::KNOWN_WINDOWS_COUNT; ++w) {
+            const tuya_codec::RegWindow &win = tuya_codec::KNOWN_WINDOWS[w];
+            if (a < static_cast<uint32_t>(win.field_a) + win.prefix_len ||
+                a >= static_cast<uint32_t>(win.field_a) + win.field_b) continue;
+            idx[i] = index_of(static_cast<uint16_t>(win.reg_base + (a - win.field_a - win.prefix_len)));
+            break;
+        }
+        if (idx[i] < 0) return false;
+    }
+    for (size_t i = 0; i < len; ++i) {
+        values_[idx[i]] = data[i];
+        present_[idx[i]] = true;
+    }
+    return true;
 }
 
 void MaconImage::set_fault(MaconFaultId id, bool active) {
