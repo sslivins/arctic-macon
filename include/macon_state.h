@@ -69,7 +69,8 @@ const char *working_mode_name(MaconWorkingMode mode);
 // ---------------------------------------------------------------------------
 
 // Assumed full-scale fan speed in RPM. The real hardware maximum is not yet
-// known (the raw reg2003 range has only been observed up to ~72 => ~720 RPM);
+// known (the raw reg2003 range has only been observed up to ~72 => ~720 RPM;
+// the ×10 scale itself is tach-verified);
 // consumers should size fan gauges/bars as a percentage of THIS value rather
 // than hardcoding a max, so the single place to revise once a live maximum is
 // measured is here in the library.
