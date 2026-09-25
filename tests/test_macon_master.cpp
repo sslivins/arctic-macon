@@ -309,6 +309,63 @@ int main() {
         CHECK(w->last_ms == 1234);
     }
 
+    // ----------------------------------------------------------------------
+    // poll_stats: every poll lands in exactly one outcome bucket, a success
+    // resets the consecutive-failure run, and checksum-bad frames are counted
+    // even when a good response follows them in the same transaction.
+    // ----------------------------------------------------------------------
+    {
+        FakeTransport t;
+        FakeClock clk;
+        RecordingSink sink;
+        MaconMaster m(t, clk, sink);
+
+        const MaconPollStats &s0 = m.poll_stats();
+        CHECK(s0.ok == 0 && s0.no_response == 0 && s0.transport_error == 0);
+        CHECK(s0.checksum_errors == 0 && s0.consecutive_failures == 0);
+
+        // Two timeouts in a row.
+        CHECK(m.poll_telemetry() == false);
+        CHECK(m.poll_holding() == false);
+        CHECK(m.poll_stats().no_response == 2);
+        CHECK(m.poll_stats().consecutive_failures == 2);
+
+        // A corrupt copy (bad checksum) followed by the real response.
+        uint8_t payload[50];
+        std::memset(payload, 0, sizeof(payload));
+        uint8_t good[80];
+        size_t gn = build_window_response(good, sizeof(good), 0, 50, payload);
+        uint8_t bad[80];
+        std::memcpy(bad, good, gn);
+        bad[gn - 1] ^= 0xFF;
+        t.queue(bad, gn);
+        t.queue(good, gn);
+        CHECK(m.poll_telemetry() == true);
+        CHECK(m.poll_stats().ok == 1);
+        CHECK(m.poll_stats().checksum_errors == 1);
+        CHECK(m.poll_stats().consecutive_failures == 0);
+        CHECK(m.poll_stats().no_response == 2);
+        CHECK(m.poll_stats().transport_error == 0);
+    }
+
+    // ----------------------------------------------------------------------
+    // poll_stats: a short write is a transport error, not a no-response.
+    // ----------------------------------------------------------------------
+    {
+        class ShortWriteTransport : public FakeTransport {
+        public:
+            int write(const uint8_t *, size_t) override { return -1; }
+        };
+        ShortWriteTransport t;
+        FakeClock clk;
+        RecordingSink sink;
+        MaconMaster m(t, clk, sink);
+        CHECK(m.poll_telemetry() == false);
+        CHECK(m.poll_stats().transport_error == 1);
+        CHECK(m.poll_stats().no_response == 0);
+        CHECK(m.poll_stats().consecutive_failures == 1);
+    }
+
     if (g_failures) {
         std::printf("test_macon_master: %d failure(s)\n", g_failures);
         return 1;
