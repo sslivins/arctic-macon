@@ -37,11 +37,30 @@ MaconMaster::MaconMaster(MaconTransport &transport, MaconClock &clock,
 // ---------------------------------------------------------------------------
 bool MaconMaster::poll_window(const tuya_codec::RegWindow &win)
 {
+    const PollOutcome outcome = poll_window_once(win);
+    switch (outcome) {
+        case PollOutcome::Ok:
+            ++poll_stats_.ok;
+            poll_stats_.consecutive_failures = 0;
+            return true;
+        case PollOutcome::NoResponse:
+            ++poll_stats_.no_response;
+            break;
+        case PollOutcome::TransportError:
+            ++poll_stats_.transport_error;
+            break;
+    }
+    ++poll_stats_.consecutive_failures;
+    return false;
+}
+
+MaconMaster::PollOutcome MaconMaster::poll_window_once(const tuya_codec::RegWindow &win)
+{
     uint8_t req[16];
     const size_t n = tuya_codec::encode_request(req, sizeof(req),
                                                 tuya_codec::FC_READ,
                                                 win.field_a, win.field_b);
-    if (n == 0) return false;
+    if (n == 0) return PollOutcome::TransportError;
 
     // Bus is idle here (the consumer holds its mutex and nothing else
     // transmits): drop any leftover trailing-tag / late bytes from the previous
@@ -49,7 +68,7 @@ bool MaconMaster::poll_window(const tuya_codec::RegWindow &win)
     tx_.flush_rx();
 
     if (tx_.write(req, n) < static_cast<int>(n)) {
-        return false;
+        return PollOutcome::TransportError;
     }
 
     uint8_t acc[ACC_CAP];
@@ -95,12 +114,15 @@ bool MaconMaster::poll_window(const tuya_codec::RegWindow &win)
                     }
                     sink_.on_observed(pf.field_a, pf.field_b,
                                       pf.payload, pf.payload_len);
-                    return true;
+                    return PollOutcome::Ok;
                 }
                 // Valid but unrelated (e.g. our echoed request) -> skip it.
                 std::memmove(acc, acc + pf.frame_len, len - pf.frame_len);
                 len -= pf.frame_len;
                 continue;
+            }
+            if (r == tuya_codec::ParseResult::BAD_CHECKSUM) {
+                ++poll_stats_.checksum_errors;
             }
             // Bad frame at head (checksum/etc.) -> drop one byte and resync.
             std::memmove(acc, acc + 1, len - 1);
@@ -116,12 +138,12 @@ bool MaconMaster::poll_window(const tuya_codec::RegWindow &win)
                                  remaining < resp_timeout_ms_
                                      ? remaining : resp_timeout_ms_);
         if (got < 0) {
-            return false;
+            return PollOutcome::TransportError;
         }
         len += (size_t)got;   // got==0 just means this slice timed out; loop re-checks deadline
     }
 
-    return false;
+    return PollOutcome::NoResponse;
 }
 
 // ---------------------------------------------------------------------------

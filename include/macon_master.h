@@ -61,6 +61,21 @@ public:
 };
 
 // ---------------------------------------------------------------------------
+// Per-instance poll outcome counters (RAM only; they reset with the master).
+// Every poll_window() call lands in exactly one of ok / no_response /
+// transport_error. checksum_errors counts checksum-failed frames seen while
+// polling, independently of the outcome (a poll can see a corrupt frame and
+// still succeed on the retry that follows it).
+// ---------------------------------------------------------------------------
+struct MaconPollStats {
+    uint32_t ok                   = 0;  // matching response decoded
+    uint32_t no_response          = 0;  // deadline expired without a match
+    uint32_t transport_error      = 0;  // short write / transport read error
+    uint32_t checksum_errors      = 0;  // frames rejected for a bad checksum
+    uint32_t consecutive_failures = 0;  // failed polls since the last success
+};
+
+// ---------------------------------------------------------------------------
 // MaconMaster
 // ---------------------------------------------------------------------------
 class MaconMaster {
@@ -86,6 +101,10 @@ public:
     /// Poll the OEM telemetry window (regs 2093.. — setpoints/temps/EEV).
     bool poll_telemetry() { return poll_window(tuya_codec::KNOWN_WINDOWS[0]); }
 
+    /// Outcome counters accumulated by poll_window(). Same threading rules as
+    /// poll_window(): read it under the consumer's bus mutex.
+    const MaconPollStats &poll_stats() const { return poll_stats_; }
+
     // --- preflight ----------------------------------------------------------
     /// Listen (read-only, no TX) for `window_ms`. Returns true only if NO valid
     /// Tuya frame was seen — i.e. no other master is driving the bus, so it is
@@ -102,7 +121,10 @@ public:
     MaconResult write_register(uint16_t register_address, uint8_t value);
 
 private:
+    enum class PollOutcome { Ok, NoResponse, TransportError };
+
     MaconResult finish_write(MaconResult r);
+    PollOutcome poll_window_once(const tuya_codec::RegWindow &win);
 
     MaconTransport   &tx_;
     MaconClock       &clock_;
@@ -110,6 +132,7 @@ private:
     MaconLink         link_;
     int               resp_timeout_ms_;
     int               poll_deadline_ms_;
+    MaconPollStats    poll_stats_;
 };
 
 // ---------------------------------------------------------------------------
