@@ -96,14 +96,17 @@ public:
     /// Cooling setpoint — wire addr 0x0000 (reg2093). Confirmed live.
     MaconResult set_cooling_setpoint(int celsius);
 
+    /// Heating setpoint (working modes 1 and 2) — wire addr 0x0001 (reg2094).
+    /// Confirmed on the bench against the OEM wired controller.
+    MaconResult set_heating_setpoint(int celsius);
+
     /// Hot-water setpoint — wire addr 0x0002 (reg2095). Confirmed live.
     MaconResult set_hot_water_setpoint(int celsius);
 
     /// Selected working mode — wire addr 0x0003 (reg2096), same fc=0x06
-    /// single-byte write as the setpoints. Auto (6) was captured from the OEM
-    /// controller and Hot Water (5) is read back live; Cooling / Floor Heating /
-    /// Fan-Coil Heating use the OEM enum values (0/1/2). Returns
-    /// UnsupportedRegister for MaconWorkingMode::Unknown without transmitting.
+    /// single-byte write as the setpoints. Only working_mode_selectable()
+    /// modes (Cooling, Heating, HotWater, HotWaterCooling) are sent; anything
+    /// else returns UnsupportedRegister without transmitting.
     MaconResult set_working_mode(MaconWorkingMode mode);
 
     /// Write one byte to a verified Macon register and wait for its ACK.
@@ -124,13 +127,7 @@ public:
     /// Hot-water setpoint read-back — reg2095 (telemetry byte 2). Confirmed.
     MaconResult read_hot_water_setpoint(int *out_celsius);
 
-    /// Space-heating setpoint read-back — reg2094 (telemetry byte 1).
-    ///
-    /// UNVERIFIED: reg2094 has NOT been confirmed to be the space-heating
-    /// setpoint. It may instead be a backup/aux-heater setpoint, and the test
-    /// unit lacks that stage, so the returned value is UNTESTED. Provided so a
-    /// future consumer with heating hardware can exercise/confirm it. There is
-    /// deliberately NO `set_heating_setpoint()` until the register is proven.
+    /// Heating setpoint read-back — reg2094 (telemetry byte 1).
     MaconResult read_heating_setpoint(int *out_celsius);
 
 private:

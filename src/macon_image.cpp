@@ -49,7 +49,7 @@ bool field_map(MaconField f, FieldMap *m) {
         case MaconField::PrimaryEev:         *m = { REG_MAIN_EEV,             Kind::Raw };        return true;
         case MaconField::RealtimePower:      *m = { REG_REALTIME_POWER,       Kind::DivHundred }; return true;
         case MaconField::CoolingSetpoint:    *m = { REG_COOLING_SETPOINT,     Kind::SignedTemp }; return true;
-        case MaconField::HeatingSetpoint:    *m = { REG_AUX_HEAT_SETPOINT,    Kind::SignedTemp }; return true;
+        case MaconField::HeatingSetpoint:    *m = { REG_HEATING_SETPOINT,     Kind::SignedTemp }; return true;
         case MaconField::HotWaterSetpoint:   *m = { REG_HOT_WATER_SETPOINT,   Kind::SignedTemp }; return true;
         case MaconField::HotWaterCeiling:    *m = { REG_HOT_WATER_CEILING,    Kind::Raw };        return true;
     }

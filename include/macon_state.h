@@ -52,17 +52,36 @@ MaconMode decode_mode(uint16_t raw);
 /// Human-readable name for a MaconMode ("Heating", "Cooling", "Unknown").
 const char *mode_name(MaconMode m);
 
+// Selected working mode (reg2096). Mapped on the bench against the OEM wired
+// controller (2026-09-26, arctic-macon#36):
+//   0 cooling icon, setpoint reg2093          (in the OEM mode-button cycle)
+//   1 heating icon (solid), setpoint reg2094
+//   2 heating icon (flashing), setpoint reg2094
+//   3 heating icon (solid), setpoint holding reg2010 (P2, not editable)
+//   4 heating icon (flashing), setpoint holding reg2011 (P3)
+//   5 hot water icon, setpoint reg2095        (in the cycle)
+//   6 cooling + hot water icons               (in the cycle; formerly "auto")
+//   7+ out of range (icons without setpoints)
+// Modes 2-4 are decoded so they can be shown, but they are not selectable:
+// what they change on a real pump is unknown.
 enum class MaconWorkingMode : uint8_t {
     Cooling = 0,
-    FloorHeating = 1,
-    FanCoilHeating = 2,
+    Heating = 1,
+    Mode2 = 2,
+    Mode3 = 3,
+    Mode4 = 4,
     HotWater = 5,
-    Auto = 6,
+    HotWaterCooling = 6,
     Unknown = 0xFF,
 };
 
 MaconWorkingMode decode_working_mode(uint16_t raw);
+/// Natural-English label ("Cooling", "Heating", "Mode 2", "Hot water",
+/// "Hot water / cooling", "Unknown").
 const char *working_mode_name(MaconWorkingMode mode);
+/// True for the modes a user may select (Cooling, Heating, HotWater,
+/// HotWaterCooling). Modes 2-4 decode but are read-only.
+bool working_mode_selectable(MaconWorkingMode mode);
 
 // ---------------------------------------------------------------------------
 // Decoded state
@@ -114,7 +133,7 @@ struct MaconState {
     // Setpoints.
     int16_t cooling_setpoint;   bool cooling_setpoint_valid;    // reg2093 wire 0x0000 (controller-written)
     int16_t hot_water_setpoint; bool hot_water_setpoint_valid;  // reg2095 wire 0x0002 (controller-written, live)
-    int16_t aux_heat_setpoint;  bool aux_heat_setpoint_valid;   // reg2094 wire 0x0001 (UNVERIFIED aux/heating)
+    int16_t heating_setpoint;   bool heating_setpoint_valid;    // reg2094 wire 0x0001 (heating, modes 1 and 2; bench-confirmed)
     int16_t hot_water_ceiling;  bool hot_water_ceiling_valid;   // reg2012 AP13 max hot-water temp (ceiling, not live)
 
     // Electrical.
@@ -177,7 +196,7 @@ bool macon_state_has_fault(const MaconState &s, MaconFaultId id);
 // dashboard, simulator) presents the same state instead of each re-deriving it.
 //
 // Direction stays native/neutral here: heating is reported as Heating, never a
-// consumer-specific label like "Floor Heating" — the consumer applies its own
+// consumer-specific label like "Underfloor heating" — the consumer applies its own
 // installation-specific wording.
 
 enum class MaconOperation : uint8_t {

@@ -75,11 +75,11 @@ int main() {
         img.set_flag(MaconFlag::Fan, true);
         img.set_flag(MaconFlag::Cooling, true);
         img.set_flag(MaconFlag::UnitOn, true);
-        img.set_working_mode(MaconWorkingMode::Auto);
+        img.set_working_mode(MaconWorkingMode::HotWaterCooling);
         MaconState s;
         img.decode(&s);
         CHECK(s.pump_on && s.fan_on && s.cooling_on && s.running);
-        CHECK(s.working_mode_valid && s.working_mode == MaconWorkingMode::Auto);
+        CHECK(s.working_mode_valid && s.working_mode == MaconWorkingMode::HotWaterCooling);
         img.set_flag(MaconFlag::Pump, false);
         img.decode(&s);
         CHECK(!s.pump_on && s.fan_on);   // clearing pump leaves fan set

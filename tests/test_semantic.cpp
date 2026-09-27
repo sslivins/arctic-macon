@@ -124,7 +124,8 @@ static void test_flags_and_enums() {
     }
 
     const MaconFieldDesc *wm = macon_field_find("working_mode");
-    for (const char *key : { "cooling", "floor_heating", "fan_coil_heating", "hot_water", "auto" }) {
+    for (const char *key : { "cooling", "heating", "mode_2", "mode_3", "mode_4",
+                             "hot_water", "hot_water_cooling" }) {
         const MaconWorkingMode m = macon_working_mode_from_key(key);
         CHECK(m != MaconWorkingMode::Unknown);
         CHECK(std::strcmp(macon_working_mode_key(m), key) == 0);
@@ -136,9 +137,19 @@ static void test_flags_and_enums() {
         CHECK(got == static_cast<int32_t>(m));
     }
     CHECK(macon_working_mode_from_key("turbo") == MaconWorkingMode::Unknown);
+    // Pre-#36 keys are still accepted as aliases, but never emitted.
+    CHECK(macon_working_mode_from_key("floor_heating") == MaconWorkingMode::Heating);
+    CHECK(macon_working_mode_from_key("fan_coil_heating") == MaconWorkingMode::Mode2);
+    CHECK(macon_working_mode_from_key("auto") == MaconWorkingMode::HotWaterCooling);
+    CHECK(std::strcmp(macon_working_mode_key(MaconWorkingMode::HotWaterCooling),
+                      "hot_water_cooling") == 0);
+    CHECK(working_mode_selectable(MaconWorkingMode::Heating));
+    CHECK(working_mode_selectable(MaconWorkingMode::HotWaterCooling));
+    CHECK(!working_mode_selectable(MaconWorkingMode::Mode2));
+    CHECK(!working_mode_selectable(MaconWorkingMode::Unknown));
     {
         MaconImage img;
-        CHECK(macon_field_set(img, *wm, 3) == MaconSetResult::OutOfRange);   // not a mode
+        CHECK(macon_field_set(img, *wm, 7) == MaconSetResult::OutOfRange);   // not a mode
     }
 
     const MaconFieldDesc *dir = macon_field_find("operating_direction");
@@ -210,10 +221,10 @@ static void test_apply_write() {
     const uint8_t hw[1] = { 38 };
     CHECK(img.apply_write(0x0002, hw, 1));
     CHECK(local_view(img).hot_water_setpoint == 38);
-    // Working mode Auto (6) at wire 0x0003 (OEM-captured value, arctic-macon #31).
+    // Working mode 6 at wire 0x0003 (OEM-captured value, arctic-macon #31).
     const uint8_t mode[1] = { 6 };
     CHECK(img.apply_write(0x0003, mode, 1));
-    CHECK(master_view(img).working_mode == MaconWorkingMode::Auto);
+    CHECK(master_view(img).working_mode == MaconWorkingMode::HotWaterCooling);
     // Cooling setpoint -5 (signed byte).
     const uint8_t cool[1] = { static_cast<uint8_t>(-5) };
     CHECK(img.apply_write(0x0000, cool, 1));

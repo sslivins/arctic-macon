@@ -35,7 +35,7 @@ static const RegEntry s_registers[] = {
 
     // "Telemetry" window (base 2093)
     { 2093, { "Cooling Setpoint",       "°C",    1.0f,   true  } },  // wire 0x0000 (controller-written)
-    { 2094, { "Aux Heat Setpoint",      "°C",    1.0f,   true  } },  // wire 0x0001 (UNVERIFIED)
+    { 2094, { "Heating Setpoint",       "°C",    1.0f,   true  } },  // wire 0x0001
     { 2095, { "Hot Water Setpoint",     "°C",    1.0f,   true  } },  // wire 0x0002 (controller-written)
     { 2101, { "AC Voltage",             "V",     10.0f,  false } },  // A13
     { 2104, { "Main EEV",               "steps", 1.0f,   false } },  // A5

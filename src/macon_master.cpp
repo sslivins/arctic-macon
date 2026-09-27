@@ -210,6 +210,12 @@ MaconResult MaconMaster::set_cooling_setpoint(int celsius)
     return finish_write(link_.set_cooling_setpoint(celsius));
 }
 
+MaconResult MaconMaster::set_heating_setpoint(int celsius)
+{
+    tx_.flush_rx();
+    return finish_write(link_.set_heating_setpoint(celsius));
+}
+
 MaconResult MaconMaster::set_hot_water_setpoint(int celsius)
 {
     tx_.flush_rx();

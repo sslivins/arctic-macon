@@ -38,7 +38,7 @@ mainboard replies with a 9-byte ACK echoing `addr`+`count`. Confirmed live
 | function | wire addr | reg | status |
 |----------|-----------|-----|--------|
 | Cooling setpoint | `0x0000` | `reg2093` | confirmed |
-| Aux / space-heating setpoint | `0x0001` | `reg2094` | **UNVERIFIED** (test unit lacks this stage) |
+| Heating setpoint (modes 1 and 2) | `0x0001` | `reg2094` | Confirmed on the bench (OEM wired controller) |
 | Hot-water setpoint (live) | `0x0002` | `reg2095` | confirmed |
 | Hot-water **ceiling** (Cn13, not a live setpoint) | — | `reg2012` | manual's "Highest setting temperature of hot water" (20~55 °C, default 50) |
 

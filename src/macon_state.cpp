@@ -27,22 +27,38 @@ const char *mode_name(MaconMode m) {
 MaconWorkingMode decode_working_mode(uint16_t raw) {
     switch (static_cast<uint8_t>(raw & 0xFF)) {
         case 0: return MaconWorkingMode::Cooling;
-        case 1: return MaconWorkingMode::FloorHeating;
-        case 2: return MaconWorkingMode::FanCoilHeating;
+        case 1: return MaconWorkingMode::Heating;
+        case 2: return MaconWorkingMode::Mode2;
+        case 3: return MaconWorkingMode::Mode3;
+        case 4: return MaconWorkingMode::Mode4;
         case 5: return MaconWorkingMode::HotWater;
-        case 6: return MaconWorkingMode::Auto;
+        case 6: return MaconWorkingMode::HotWaterCooling;
         default: return MaconWorkingMode::Unknown;
     }
 }
 
 const char *working_mode_name(MaconWorkingMode mode) {
     switch (mode) {
-        case MaconWorkingMode::Cooling:        return "Cooling";
-        case MaconWorkingMode::FloorHeating:   return "Floor Heating";
-        case MaconWorkingMode::FanCoilHeating: return "Fan Coil Heating";
-        case MaconWorkingMode::HotWater:       return "Hot Water";
-        case MaconWorkingMode::Auto:           return "Auto";
-        default:                               return "Unknown";
+        case MaconWorkingMode::Cooling:         return "Cooling";
+        case MaconWorkingMode::Heating:         return "Heating";
+        case MaconWorkingMode::Mode2:           return "Mode 2";
+        case MaconWorkingMode::Mode3:           return "Mode 3";
+        case MaconWorkingMode::Mode4:           return "Mode 4";
+        case MaconWorkingMode::HotWater:        return "Hot water";
+        case MaconWorkingMode::HotWaterCooling: return "Hot water / cooling";
+        default:                                return "Unknown";
+    }
+}
+
+bool working_mode_selectable(MaconWorkingMode mode) {
+    switch (mode) {
+        case MaconWorkingMode::Cooling:
+        case MaconWorkingMode::Heating:
+        case MaconWorkingMode::HotWater:
+        case MaconWorkingMode::HotWaterCooling:
+            return true;
+        default:
+            return false;
     }
 }
 
@@ -138,8 +154,8 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
         s8(val(REG_COOLING_SETPOINT, &out->cooling_setpoint_valid));   // reg2093 wire 0x0000
     out->hot_water_setpoint =
         s8(val(REG_HOT_WATER_SETPOINT, &out->hot_water_setpoint_valid)); // reg2095 wire 0x0002 (live)
-    out->aux_heat_setpoint =
-        s8(val(REG_AUX_HEAT_SETPOINT, &out->aux_heat_setpoint_valid));   // reg2094 wire 0x0001 (UNVERIFIED)
+    out->heating_setpoint =
+        s8(val(REG_HEATING_SETPOINT, &out->heating_setpoint_valid));     // reg2094 wire 0x0001
     out->hot_water_ceiling =
         static_cast<int16_t>(val(REG_HOT_WATER_CEILING, &out->hot_water_ceiling_valid)); // reg2012 AP13 ceiling
 
@@ -213,12 +229,14 @@ MaconOperation decode_operation(const MaconState &s) {
         switch (s.working_mode) {
             case MaconWorkingMode::Cooling:
                 return MaconOperation::Cooling;
-            case MaconWorkingMode::FloorHeating:
-            case MaconWorkingMode::FanCoilHeating:
+            case MaconWorkingMode::Heating:
+            case MaconWorkingMode::Mode2:
+            case MaconWorkingMode::Mode3:
+            case MaconWorkingMode::Mode4:
             case MaconWorkingMode::HotWater:
                 return MaconOperation::Heating;
-            case MaconWorkingMode::Auto:
-                return MaconOperation::Unknown;
+            case MaconWorkingMode::HotWaterCooling:
+                return MaconOperation::Unknown;   // either side may be active
             default:
                 break;
         }
