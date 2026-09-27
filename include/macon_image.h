@@ -47,7 +47,7 @@ enum class MaconField : uint8_t {
     PrimaryEev,         // steps   (raw)
     RealtimePower,      // watts   (wire = /100)
     CoolingSetpoint,    // whole °C
-    HeatingSetpoint,    // whole °C (aux; UNVERIFIED on this unit)
+    HeatingSetpoint,    // whole °C (reg2094, modes 1 and 2)
     HotWaterSetpoint,   // whole °C
     HotWaterCeiling,    // whole °C (AP13 ceiling)
 };

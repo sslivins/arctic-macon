@@ -32,23 +32,23 @@ MaconResult MaconLink::set_cooling_setpoint(int celsius) {
     return write_setpoint(0x0000, celsius);
 }
 
+MaconResult MaconLink::set_heating_setpoint(int celsius) {
+    // Heating setpoint (modes 1 and 2) lives at wire addr 0x0001 (reg2094).
+    return write_setpoint(0x0001, celsius);
+}
+
 MaconResult MaconLink::set_hot_water_setpoint(int celsius) {
     // Hot-water setpoint lives at wire addr 0x0002 (reg2095). See note above.
     return write_setpoint(0x0002, celsius);
 }
 
 MaconResult MaconLink::set_working_mode(MaconWorkingMode mode) {
-    switch (mode) {
-        case MaconWorkingMode::Cooling:
-        case MaconWorkingMode::FloorHeating:
-        case MaconWorkingMode::FanCoilHeating:
-        case MaconWorkingMode::HotWater:
-        case MaconWorkingMode::Auto:
-            // Working mode lives at wire addr 0x0003 (reg2096).
-            return write_byte(0x0003, static_cast<uint8_t>(mode));
-        default:
-            return MaconResult::UnsupportedRegister;
+    // Only the user-selectable modes are written; 2-4 and Unknown are refused.
+    if (!working_mode_selectable(mode)) {
+        return MaconResult::UnsupportedRegister;
     }
+    // Working mode lives at wire addr 0x0003 (reg2096).
+    return write_byte(0x0003, static_cast<uint8_t>(mode));
 }
 
 MaconResult MaconLink::write_register(uint16_t register_address, uint8_t value) {
@@ -75,7 +75,7 @@ MaconResult MaconLink::read_hot_water_setpoint(int *out_celsius) {
 
 MaconResult MaconLink::read_heating_setpoint(int *out_celsius) {
     // UNVERIFIED register (reg2094). See header / docs/REGISTERS.md.
-    return read_setpoint(REG_AUX_HEAT_SETPOINT - tuya_codec::KNOWN_WINDOWS[0].reg_base, out_celsius);
+    return read_setpoint(REG_HEATING_SETPOINT - tuya_codec::KNOWN_WINDOWS[0].reg_base, out_celsius);
 }
 
 // --- private transaction helpers -------------------------------------------

@@ -49,18 +49,19 @@ constexpr uint16_t HOLDING_COUNT = 58;   // 2000–2057
 // The controller SETS a setpoint by writing one byte to the matching wire byte
 // offset (fc=0x06): wire addr N -> reg 2093+N. Confirmed live 2026-07-09.
 constexpr uint16_t REG_COOLING_SETPOINT     = 2093;  // wire addr 0x0000; cooling setpoint (whole °C, confirmed)
-// wire addr 0x0001. Byte1 of the telemetry window. Observed = 40. Hypothesised
-// to be a backup/aux-heater (space-heating) setpoint; this unit lacks that
-// stage, so the field is UNVERIFIED — do not rely on it.
-constexpr uint16_t REG_AUX_HEAT_SETPOINT    = 2094;  // wire addr 0x0001; aux/backup-heater setpoint (UNVERIFIED)
+// wire addr 0x0001. Heating setpoint used by working modes 1 and 2. Confirmed
+// on the bench 2026-09-26: with mode 1 selected the OEM wired controller shows
+// this value, and dialling it to 47 emitted fc=0x06 wire addr 0x0001 data 47.
+// (Modes 3 and 4 show holding reg2010 / reg2011 instead; see macon_state.h.)
+constexpr uint16_t REG_HEATING_SETPOINT     = 2094;  // wire addr 0x0001; heating setpoint (confirmed)
 // wire addr 0x0002. Live hot-water setpoint. Confirmed 2026-07-09: dialing the
 // hot-water setpoint to 38 °C moved reg2095 0x32(50) -> 0x26(38) and emitted an
 // fc=0x06 write to wire addr 0x0002. This is the live target, distinct from the
 // reg2012 (AP13) ceiling.
 constexpr uint16_t REG_HOT_WATER_SETPOINT   = 2095;  // wire addr 0x0002; live hot-water setpoint (confirmed)
-// wire addr 0x0003. Confirmed live 2026-08-09: selecting Auto emitted fc=0x06
-// writes with value 6. Values match the OEM working-mode enum used by the
-// controller: 0=cooling, 1=floor heat, 2=fan-coil heat, 5=hot water, 6=auto.
+// wire addr 0x0003. Confirmed live 2026-08-09 (the OEM writes value 6) and
+// mapped on the bench 2026-09-26: 0=cooling, 1=heating, 2/3/4=heating variants
+// (read-only), 5=hot water, 6=hot water / cooling. See MaconWorkingMode.
 constexpr uint16_t REG_WORKING_MODE         = 2096;
 constexpr uint16_t REG_AC_VOLTAGE           = 2101;  // A13 AC input voltage (x10 = V)
 constexpr uint16_t REG_MAIN_EEV             = 2104;  // A5  main elec. expansion valve

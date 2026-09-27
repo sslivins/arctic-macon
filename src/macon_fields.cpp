@@ -31,7 +31,7 @@ const MaconFieldDesc MACON_FIELDS[] = {
     TEMP("outdoor_ambient_temp", nullptr, MaconField::OutdoorAmbientTemp, true),
     TEMP("ipm_temp",             nullptr, MaconField::IpmTemp,            true),
     TEMP("cooling_setpoint",     nullptr, MaconField::CoolingSetpoint,    true),
-    TEMP("heating_setpoint",     nullptr, MaconField::HeatingSetpoint,    false),
+    TEMP("heating_setpoint",     nullptr, MaconField::HeatingSetpoint,    true),
     TEMP("hot_water_setpoint",   nullptr, MaconField::HotWaterSetpoint,   true),
     NUM("hot_water_ceiling",   nullptr, nullptr, "C",     0,   255,   1,   true, MaconField::HotWaterCeiling),
     NUM("compressor_freq",     nullptr, nullptr, "Hz",    0,   255,   1,   true, MaconField::CompressorFreq),
@@ -75,11 +75,20 @@ const MaconFieldDesc *macon_field_find(const char *name) {
 namespace {
 struct ModeKey { MaconWorkingMode mode; const char *key; };
 constexpr ModeKey kModeKeys[] = {
-    { MaconWorkingMode::Cooling,        "cooling" },
-    { MaconWorkingMode::FloorHeating,   "floor_heating" },
-    { MaconWorkingMode::FanCoilHeating, "fan_coil_heating" },
-    { MaconWorkingMode::HotWater,       "hot_water" },
-    { MaconWorkingMode::Auto,           "auto" },
+    { MaconWorkingMode::Cooling,         "cooling" },
+    { MaconWorkingMode::Heating,         "heating" },
+    { MaconWorkingMode::Mode2,           "mode_2" },
+    { MaconWorkingMode::Mode3,           "mode_3" },
+    { MaconWorkingMode::Mode4,           "mode_4" },
+    { MaconWorkingMode::HotWater,        "hot_water" },
+    { MaconWorkingMode::HotWaterCooling, "hot_water_cooling" },
+};
+// Keys used before the 2026-09 bench mapping (arctic-macon#36). Accepted on
+// input so existing automations keep working; never emitted.
+constexpr ModeKey kModeKeyAliases[] = {
+    { MaconWorkingMode::Heating,         "floor_heating" },
+    { MaconWorkingMode::Mode2,           "fan_coil_heating" },
+    { MaconWorkingMode::HotWaterCooling, "auto" },
 };
 }  // namespace
 
@@ -91,6 +100,7 @@ const char *macon_working_mode_key(MaconWorkingMode mode) {
 MaconWorkingMode macon_working_mode_from_key(const char *key) {
     if (key == nullptr) return MaconWorkingMode::Unknown;
     for (const ModeKey &k : kModeKeys) if (std::strcmp(k.key, key) == 0) return k.mode;
+    for (const ModeKey &k : kModeKeyAliases) if (std::strcmp(k.key, key) == 0) return k.mode;
     return MaconWorkingMode::Unknown;
 }
 
@@ -184,7 +194,7 @@ bool macon_field_get(const MaconState &s, const MaconFieldDesc &desc, int32_t *o
         case MaconField::PrimaryEev:         *out = s.primary_eev;        return s.primary_eev_valid;
         case MaconField::RealtimePower:      *out = static_cast<int32_t>(s.realtime_power_w); return s.realtime_power_valid;
         case MaconField::CoolingSetpoint:    *out = s.cooling_setpoint;   return s.cooling_setpoint_valid;
-        case MaconField::HeatingSetpoint:    *out = s.aux_heat_setpoint;  return s.aux_heat_setpoint_valid;
+        case MaconField::HeatingSetpoint:    *out = s.heating_setpoint;   return s.heating_setpoint_valid;
         case MaconField::HotWaterSetpoint:   *out = s.hot_water_setpoint; return s.hot_water_setpoint_valid;
         case MaconField::HotWaterCeiling:    *out = s.hot_water_ceiling;  return s.hot_water_ceiling_valid;
     }

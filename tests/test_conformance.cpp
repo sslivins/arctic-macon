@@ -88,7 +88,7 @@ static void test_real_capture_decode() {
     img.decode(&s);
     // Telemetry window (reg 2093..2142).
     CHECK(s.cooling_setpoint_valid && s.cooling_setpoint == 10);   // 2093 = 0x0a
-    CHECK(s.aux_heat_setpoint_valid && s.aux_heat_setpoint == 40); // 2094 = 0x28
+    CHECK(s.heating_setpoint_valid && s.heating_setpoint == 40);   // 2094 = 0x28
     CHECK(s.hot_water_setpoint_valid && s.hot_water_setpoint == 50); // 2095 = 0x32
     CHECK(s.working_mode_valid && s.working_mode == MaconWorkingMode::HotWater); // 2096 = 5
     CHECK(s.ac_voltage_valid && s.ac_voltage == 230);              // 2101 = 23 (x10)

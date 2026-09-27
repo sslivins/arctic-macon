@@ -66,7 +66,10 @@ MaconSetResult macon_field_set(MaconImage &img, const MaconFieldDesc &desc,
 bool macon_field_get(const MaconState &s, const MaconFieldDesc &desc, int32_t *out);
 
 // API string keys for the enum-valued fields.
-//   working mode: "cooling", "floor_heating", "fan_coil_heating", "hot_water", "auto"
+//   working mode: "cooling", "heating", "mode_2", "mode_3", "mode_4", "hot_water",
+//   "hot_water_cooling". from_key also accepts the old "floor_heating",
+//   "fan_coil_heating" and "auto". Only working_mode_selectable() modes may be
+//   written to a real unit.
 //   direction:    "heating", "cooling"
 const char       *macon_working_mode_key(MaconWorkingMode mode);   // nullptr if Unknown
 MaconWorkingMode  macon_working_mode_from_key(const char *key);    // Unknown if bad

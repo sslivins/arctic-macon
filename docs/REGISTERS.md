@@ -51,7 +51,7 @@ replies with a 9-byte ACK echoing `addr`+`count` (no data). Confirmed live
 | function | wire addr | library reg | live value seen | status |
 |----------|-----------|-------------|-----------------|--------|
 | **Cooling setpoint** | `0x0000` | `reg2093` | 12 → 24 (dial), −5 min | **confirmed** |
-| **Aux / space-heating setpoint** | `0x0001` | `reg2094` | 40 | **UNVERIFIED** (test unit lacks this stage) |
+| **Heating setpoint** (modes 1 and 2) | `0x0001` | `reg2094` | 40 | Confirmed on the bench 2026-09-26 (OEM wired controller wrote 47 here) |
 | **Hot-water setpoint** (live target) | `0x0002` | `reg2095` | 50 → 38 (dial) | **confirmed** |
 
 Example (hot-water 50 → 38 °C):
@@ -82,9 +82,9 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | reg | code | field | scale / notes |
 |-----|------|-------|---------------|
 | 2093 | — | Cooling setpoint | signed °C (wire 0x0000) |
-| 2094 | — | Aux/heating setpoint | signed °C (wire 0x0001, **UNVERIFIED**) |
+| 2094 | — | Heating setpoint | signed °C (wire 0x0001, writable; used by modes 1 and 2) |
 | 2095 | — | Hot-water setpoint | signed °C (wire 0x0002) |
-| 2096 | — | Selected working mode | 0 cooling, 1 floor heat, 2 fan-coil heat, 5 hot water, 6 auto (wire 0x0003, writable) |
+| 2096 | — | Selected working mode | 0 cooling, 1 heating, 5 hot water, 6 hot water / cooling (wire 0x0003, writable). 2/3/4 are heating variants, decoded as "Mode 2/3/4" but not writable: 2 = flashing heating icon with the 2094 setpoint, 3 = solid icon with holding reg2010, 4 = flashing icon with holding reg2011. 7+ are out of range. |
 | 2101 | A13 | AC input voltage | ×10 = V |
 | 2104 | A5  | Main EEV | steps |
 | 2113 | A8  | IPM temp | signed °C |

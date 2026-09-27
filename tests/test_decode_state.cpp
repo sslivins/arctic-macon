@@ -43,11 +43,19 @@ int main() {
     CHECK(std::strcmp(mode_name(MaconMode::Cooling), "Cooling") == 0);
     CHECK(std::strcmp(mode_name(MaconMode::Unknown), "Unknown") == 0);
     CHECK(decode_working_mode(0) == MaconWorkingMode::Cooling);
-    CHECK(decode_working_mode(1) == MaconWorkingMode::FloorHeating);
-    CHECK(decode_working_mode(2) == MaconWorkingMode::FanCoilHeating);
+    CHECK(decode_working_mode(1) == MaconWorkingMode::Heating);
+    CHECK(decode_working_mode(2) == MaconWorkingMode::Mode2);
+    CHECK(decode_working_mode(3) == MaconWorkingMode::Mode3);
+    CHECK(decode_working_mode(4) == MaconWorkingMode::Mode4);
     CHECK(decode_working_mode(5) == MaconWorkingMode::HotWater);
-    CHECK(decode_working_mode(6) == MaconWorkingMode::Auto);
-    CHECK(decode_working_mode(3) == MaconWorkingMode::Unknown);
+    CHECK(decode_working_mode(6) == MaconWorkingMode::HotWaterCooling);
+    CHECK(decode_working_mode(7) == MaconWorkingMode::Unknown);
+    CHECK(decode_working_mode(8) == MaconWorkingMode::Unknown);
+    CHECK(std::strcmp(working_mode_name(MaconWorkingMode::Heating), "Heating") == 0);
+    CHECK(std::strcmp(working_mode_name(MaconWorkingMode::Mode3), "Mode 3") == 0);
+    CHECK(std::strcmp(working_mode_name(MaconWorkingMode::HotWater), "Hot water") == 0);
+    CHECK(std::strcmp(working_mode_name(MaconWorkingMode::HotWaterCooling),
+                      "Hot water / cooling") == 0);
 
     // --- decode_state: heating snapshot ------------------------------------
     uint16_t regs[COUNT];
@@ -63,9 +71,9 @@ int main() {
     set_reg(regs, REG_DISCHARGE_TEMP, 85);
     set_reg(regs, REG_HOT_WATER_CEILING, 50);   // reg2012 AP13 ceiling
     set_reg(regs, REG_COOLING_SETPOINT, 24);    // reg2093 cooling setpoint
-    set_reg(regs, REG_AUX_HEAT_SETPOINT, 40);   // reg2094 aux/heating (unverified)
+    set_reg(regs, REG_HEATING_SETPOINT, 40);    // reg2094 heating setpoint
     set_reg(regs, REG_HOT_WATER_SETPOINT, 38);  // reg2095 live hot-water setpoint
-    set_reg(regs, REG_WORKING_MODE, 1);         // floor heating
+    set_reg(regs, REG_WORKING_MODE, 1);         // heating
     set_reg(regs, REG_AC_CURRENT, 12);
     set_reg(regs, REG_AC_VOLTAGE, 23);          // *10 => 230 V
     set_reg(regs, REG_DC_BUS_VOLTAGE, 36);      // *10 => 360 V
@@ -78,7 +86,7 @@ int main() {
 
     CHECK(st.mode == MaconMode::Heating);
     CHECK(st.mode_valid);
-    CHECK(st.working_mode == MaconWorkingMode::FloorHeating);
+    CHECK(st.working_mode == MaconWorkingMode::Heating);
     CHECK(st.working_mode_valid);
     CHECK(st.running);
     CHECK(st.compressor_on);
@@ -95,8 +103,8 @@ int main() {
     CHECK(st.hot_water_ceiling_valid);
     CHECK(st.hot_water_setpoint == 38);
     CHECK(st.hot_water_setpoint_valid);
-    CHECK(st.aux_heat_setpoint == 40);
-    CHECK(st.aux_heat_setpoint_valid);
+    CHECK(st.heating_setpoint == 40);
+    CHECK(st.heating_setpoint_valid);
     CHECK(st.cooling_setpoint == 24);
     CHECK(st.cooling_setpoint_valid);
     CHECK(st.ac_current == 12);
