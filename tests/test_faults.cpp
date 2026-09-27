@@ -29,7 +29,7 @@ int main() {
     CHECK(p02 != nullptr);
     CHECK(p02 && std::strcmp(p02->code, "P02") == 0);
     CHECK(p02 && p02->severity == FaultSeverity::CRITICAL);
-    CHECK(macon_fault_bit(2127, 0) == nullptr);   // no fault at that bit
+    CHECK(macon_fault_bit(2126, 3) == nullptr);   // no fault at that bit
     CHECK(macon_fault_bit(9999, 0) == nullptr);   // unknown register
 
     // The RUN indicator is an INFO bit, present but never a fault.

@@ -90,6 +90,8 @@ enum class MaconFaultId : uint16_t {
     P10Protection,              // "P10"
     AntifreezeProtection,       // "P30"
     WaterFlowProtection,        // "P01"
+    // Appended (not grouped by register) so existing ids keep their values.
+    DcFanMotor,                 // "FA" (reg2127 bit0; app-only, no LCD code)
 
     Count,                      // number of distinct fault ids
     Unknown = 0xFFFF,           // no fault / unrecognised code
@@ -109,6 +111,10 @@ struct MaconFaultBit {
     const char   *label;      // human-readable description
     FaultSeverity severity;
     MaconFaultId  id;         // semantic identity (Unknown for the RUN indicator)
+    const char   *label_msg_id;   // stable i18n key for `label` (UIs translate via
+                                  // this key, falling back to the English `label`)
+    bool          wired_display;  // true if the OEM wired controller shows this
+                                  // code; false = only visible in the Macon app
 };
 
 // The five Macon fault-bitfield register addresses.
@@ -128,6 +134,8 @@ struct MaconFault {
     uint8_t          bit;
     MaconFaultId     id;      // semantic identity (for logic / resolution)
     MaconFaultSiteId site;    // stable per-bit identity (for history / dedup)
+    const char      *label_msg_id;  // i18n key for `label` (see MaconFaultBit)
+    bool             wired_display; // shown on the OEM wired controller
 };
 
 // Decode active faults from the five raw fault-register bytes into `out`
@@ -204,6 +212,11 @@ FaultSeverity macon_severity_for_fault_id(MaconFaultId id);
 // Human-readable remediation text for a fault id. Never null: returns a generic
 // "contact the dealer" fallback for ids without specific guidance.
 const char   *macon_fault_resolution(MaconFaultId id);
+
+// Stable i18n key for macon_fault_resolution(id). Never null. UIs translate via
+// this key and fall back to the English macon_fault_resolution() text (same
+// en-default + msg_id pattern as the advanced-parameter catalog).
+const char   *macon_fault_resolution_msg_id(MaconFaultId id);
 
 // Stable per-bit site identity for a (reg, bit). Opaque token; 0 if unknown.
 MaconFaultSiteId macon_fault_site_id(uint16_t reg, uint8_t bit);
