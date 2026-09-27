@@ -169,7 +169,7 @@ static void test_fault_table_pinned() {
         {2126,0,"r02",S::FAULT},   {2126,1,"E26",S::CRITICAL},{2126,2,"r01",S::CRITICAL},
         {2126,4,"E01",S::FAULT},   {2126,5,"E09",S::FAULT},   {2126,6,"E05",S::FAULT},
         {2126,7,"E22",S::FAULT},
-        {2127,1,"P19",S::FAULT},   {2127,2,"r06",S::FAULT},   {2127,3,"r10",S::FAULT},
+        {2127,0,"FA",S::FAULT},    {2127,1,"P19",S::FAULT},   {2127,2,"r06",S::FAULT},   {2127,3,"r10",S::FAULT},
         {2127,4,"r11",S::FAULT},   {2127,5,"r05",S::FAULT},   {2127,6,"P11",S::FAULT},
         {2127,7,"P02",S::CRITICAL},
         {2128,0,"P06",S::CRITICAL},{2128,1,"P27",S::FAULT},   {2128,2,"PC",S::WARNING},

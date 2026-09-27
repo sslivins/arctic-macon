@@ -37,7 +37,7 @@ int main() {
     // --- id -> representative code / label / severity -----------------------
     CHECK(std::strcmp(macon_code_for_fault_id(MaconFaultId::HighPressureProtection), "P02") == 0);
     CHECK(std::strcmp(macon_label_for_fault_id(MaconFaultId::HighPressureProtection),
-                      "High pressure protection") == 0);
+                      "Refrigerant pressure too high") == 0);
     CHECK(macon_severity_for_fault_id(MaconFaultId::HighPressureProtection) == FaultSeverity::CRITICAL);
     CHECK(macon_code_for_fault_id(MaconFaultId::Unknown) == nullptr);
     CHECK(macon_severity_for_fault_id(MaconFaultId::Unknown) == FaultSeverity::INFO);
@@ -47,14 +47,14 @@ int main() {
                       "inlet water temperature sensor") != nullptr);
     // An id without specific guidance falls back, never null.
     const char *fallback = macon_fault_resolution(MaconFaultId::FeProtection);
-    CHECK(fallback != nullptr && std::strcmp(fallback, "Contact the dealer.") == 0);
+    CHECK(fallback != nullptr && std::strcmp(fallback, "Contact your dealer.") == 0);
     CHECK(macon_fault_resolution(MaconFaultId::Unknown) != nullptr);
 
     // --- site id: distinct per (reg,bit), same id for duplicate-code sites --
     MaconFaultSiteId s1 = macon_fault_site_id(2125, 0);  // E28 outdoor
     MaconFaultSiteId s2 = macon_fault_site_id(2125, 5);  // E28 indoor
     CHECK(s1 != 0 && s2 != 0 && s1 != s2);
-    CHECK(macon_fault_site_id(2127, 0) == 0);            // no fault at that bit
+    CHECK(macon_fault_site_id(2126, 3) == 0);            // no fault at that bit
     CHECK(macon_fault_site_id(9999, 0) == 0);
 
     // --- has_fault_id over raw bytes ----------------------------------------
@@ -96,7 +96,7 @@ int main() {
         CHECK(macon_code_for_fault_id(fb.id) != nullptr);
     }
     // Enum count matches the number of distinct fault ids reachable.
-    CHECK(static_cast<uint16_t>(MaconFaultId::Count) == 31);
+    CHECK(static_cast<uint16_t>(MaconFaultId::Count) == 32);
 
     // --- macon_fault_bit_for_site (reverse of macon_fault_site_id) ----------
     for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {
@@ -110,6 +110,77 @@ int main() {
     }
     CHECK(macon_fault_bit_for_site(0) == nullptr);
     CHECK(macon_fault_bit_for_site(0xFFFF) == nullptr);
+
+    // --- FA: DC fan motor (reg2127 bit0), found on the OEM app 2026-09-26 ----
+    CHECK(macon_fault_id_from_code("FA") == MaconFaultId::DcFanMotor);
+    CHECK(macon_fault_site_id(2127, 0) != 0);
+    CHECK(macon_has_fault_id(0, 0, 0, 0x01, 0, MaconFaultId::DcFanMotor));
+    CHECK(std::strstr(macon_fault_resolution(MaconFaultId::DcFanMotor), "fan motor") != nullptr);
+
+    // --- wired_display: app-only codes vs codes the OEM wired controller shows
+    const char *app_only[] = { "r01", "r02", "r05", "r06", "r10", "r11", "P19", "FA" };
+    for (const char *c : app_only) {
+        const MaconFaultBit *fb[2];
+        CHECK(macon_fault_bits_for_code(c, fb, 2) == 1);
+        CHECK(!fb[0]->wired_display);
+    }
+    CHECK(macon_fault_bit(2127, 7)->wired_display);   // P02
+    CHECK(macon_fault_bit(2128, 4)->wired_display);   // P30
+
+    // --- i18n keys: every fault site has a unique "fault.*.label" key -------
+    for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {
+        const MaconFaultBit &fb = MACON_FAULT_BITS[i];
+        if (fb.severity == FaultSeverity::INFO) continue;
+        CHECK(fb.label_msg_id != nullptr);
+        if (!fb.label_msg_id) continue;
+        const size_t len = std::strlen(fb.label_msg_id);
+        CHECK(std::strncmp(fb.label_msg_id, "fault.", 6) == 0);
+        CHECK(len > 6 && std::strcmp(fb.label_msg_id + len - 6, ".label") == 0);
+        for (size_t j = i + 1; j < MACON_FAULT_BITS_COUNT; ++j) {
+            const char *other = MACON_FAULT_BITS[j].label_msg_id;
+            CHECK(!other || std::strcmp(other, fb.label_msg_id) != 0);
+        }
+    }
+    // Resolution keys: never null, default key for ids without guidance, and
+    // distinct resolutions never share a key.
+    CHECK(std::strcmp(macon_fault_resolution_msg_id(MaconFaultId::FeProtection),
+                      "fault.default.resolution") == 0);
+    CHECK(std::strcmp(macon_fault_resolution_msg_id(MaconFaultId::Unknown),
+                      "fault.default.resolution") == 0);
+    CHECK(std::strcmp(macon_fault_resolution_msg_id(MaconFaultId::HighPressureProtection),
+                      "fault.high_pressure.resolution") == 0);
+    for (uint16_t a = 0; a < static_cast<uint16_t>(MaconFaultId::Count); ++a) {
+        const MaconFaultId ia = static_cast<MaconFaultId>(a);
+        CHECK(macon_fault_resolution_msg_id(ia) != nullptr);
+        for (uint16_t b = a + 1; b < static_cast<uint16_t>(MaconFaultId::Count); ++b) {
+            const MaconFaultId ib = static_cast<MaconFaultId>(b);
+            if (std::strcmp(macon_fault_resolution_msg_id(ia),
+                            macon_fault_resolution_msg_id(ib)) == 0) {
+                CHECK(std::strcmp(macon_fault_resolution(ia), macon_fault_resolution(ib)) == 0);
+            }
+        }
+    }
+
+    // Decode carries the per-site key + wired flag through.
+    {
+        MaconFault f[4];
+        size_t m = macon_decode_faults(0, 0x20, 0, 0x01, 0, f, 4);  // E28 indoor + FA
+        CHECK(m == 2);
+        bool saw_fa = false, saw_e28 = false;
+        for (size_t i = 0; i < m; ++i) {
+            if (f[i].id == MaconFaultId::DcFanMotor) {
+                saw_fa = true;
+                CHECK(!f[i].wired_display);
+                CHECK(std::strcmp(f[i].label_msg_id, "fault.dc_fan_motor.label") == 0);
+            }
+            if (f[i].id == MaconFaultId::EepromError) {
+                saw_e28 = true;
+                CHECK(f[i].wired_display);
+                CHECK(std::strcmp(f[i].label_msg_id, "fault.eeprom_indoor.label") == 0);
+            }
+        }
+        CHECK(saw_fa && saw_e28);
+    }
 
     if (g_failures) {
         std::printf("%d FAILURE(S)\n", g_failures);
