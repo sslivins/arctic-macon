@@ -4,6 +4,7 @@
 #include "macon_state.h"
 #include "macon_registers.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -300,6 +301,46 @@ int main() {
         // Zero/negative flow input -> invalid.
         const PerformanceInputs noflow = { 0.0f, 4186.0f, 1.0f };
         CHECK(!estimate_performance(h, noflow).valid);
+
+        // Defrosting -> invalid (the unit is pulling heat back out of the loop).
+        MaconState hd = h;
+        hd.defrost_on = true;
+        CHECK(!estimate_performance(hd, water40).valid);
+
+        // --- estimate_performance_with_temps (external sensors) ----------
+        // Heating, supply 41.25 / return 37.75 -> dT +3.5 K, power 3900 W.
+        PerformanceEstimate xh = estimate_performance_with_temps(h, 41.25f, 37.75f, water40);
+        CHECK(xh.valid);
+        // Q = (40/60)*4186*3.5 = 9767.3 W ; COP = 2.50
+        CHECK(xh.thermal_w > 9740 && xh.thermal_w < 9790);
+        CHECK(xh.cop_x100 >= 249 && xh.cop_x100 <= 251);
+
+        // Cooling, supply 11.4 / return 13.9 -> dT -2.5 K, power 1400 W.
+        PerformanceEstimate xc = estimate_performance_with_temps(c, 11.4f, 13.9f, water40);
+        CHECK(xc.valid);
+        CHECK(xc.thermal_w < 0);
+        // |Q| = (40/60)*4186*2.5 = 6976.7 W ; COP = 4.98
+        CHECK(xc.cop_x100 >= 496 && xc.cop_x100 <= 500);
+
+        // Wrong direction for the mode (sensors swapped) -> invalid.
+        CHECK(!estimate_performance_with_temps(h, 37.75f, 41.25f, water40).valid);
+        CHECK(!estimate_performance_with_temps(c, 13.9f, 11.4f, water40).valid);
+
+        // Below the noise floor -> invalid; custom floor honoured.
+        CHECK(!estimate_performance_with_temps(h, 40.2f, 40.0f, water40).valid);
+        CHECK(estimate_performance_with_temps(h, 40.2f, 40.0f, water40, 0.1f).valid);
+
+        // Doesn't need the unit's own water sensors.
+        MaconState hn = h;
+        hn.inlet_valid = false;
+        hn.outlet_valid = false;
+        CHECK(!estimate_performance(hn, water40).valid);
+        CHECK(estimate_performance_with_temps(hn, 41.25f, 37.75f, water40).valid);
+
+        // Still gated on compressor, defrost and NaN.
+        CHECK(!estimate_performance_with_temps(off, 41.25f, 37.75f, water40).valid);
+        CHECK(!estimate_performance_with_temps(hd, 41.25f, 37.75f, water40).valid);
+        CHECK(!estimate_performance_with_temps(h, NAN, 37.75f, water40).valid);
     }
 
     // --- setpoint limits ---------------------------------------------------

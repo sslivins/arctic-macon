@@ -256,11 +256,29 @@ struct PerformanceEstimate {
 /// dT = outlet_c - inlet_c (whole °C == K). In cooling, dT is negative so
 /// thermal_w is negative; COP is reported as the magnitude |Q| / power.
 ///
-/// Returns valid=false (and zeros) unless the compressor is running, both water
-/// temps and real-time power were decoded, the supplied inputs are positive,
-/// power is non-zero, and dT is non-zero.
+/// Returns valid=false (and zeros) unless the compressor is running (and not
+/// defrosting), both water temps and real-time power were decoded, the
+/// supplied inputs are positive, power is non-zero, and dT is non-zero.
 PerformanceEstimate estimate_performance(const MaconState &s,
                                          const PerformanceInputs &in);
+
+/// Smallest supply/return difference estimate_performance_with_temps() accepts
+/// by default. Below this the sensors' own error swamps the reading.
+constexpr float kMinExternalDeltaC = 0.3f;
+
+/// Same physics as estimate_performance(), but with temperatures from finer
+/// external sensors instead of the unit's whole-°C inlet/outlet readings.
+///
+/// `supply_c` is the water leaving the heat pump, `return_c` the water coming
+/// back to it. The unit's own power and run state still gate the estimate.
+/// Returns valid=false unless the compressor is running, the unit is not
+/// defrosting, |supply - return| >= `min_delta_c`, and (when the direction is
+/// known) the sign matches it: supply warmer than return when heating, cooler
+/// when cooling. A mismatch usually means the two sensors are swapped.
+PerformanceEstimate estimate_performance_with_temps(const MaconState &s,
+                                                    float supply_c, float return_c,
+                                                    const PerformanceInputs &in,
+                                                    float min_delta_c = kMinExternalDeltaC);
 
 // ---------------------------------------------------------------------------
 // Setpoint write (controller -> unit)
