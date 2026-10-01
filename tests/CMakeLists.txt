@@ -66,3 +66,7 @@ add_test(NAME semantic COMMAND test_semantic)
 add_executable(test_conformance test_conformance.cpp)
 target_link_libraries(test_conformance PRIVATE arctic_macon)
 add_test(NAME conformance COMMAND test_conformance)
+
+add_executable(test_fluid test_fluid.cpp)
+target_link_libraries(test_fluid PRIVATE arctic_macon)
+add_test(NAME fluid COMMAND test_fluid)

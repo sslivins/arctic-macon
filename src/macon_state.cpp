@@ -258,30 +258,24 @@ const char *operation_name(MaconOperation op) {
     }
 }
 
-PerformanceEstimate estimate_performance(const MaconState &s,
-                                         const PerformanceInputs &in) {
-    PerformanceEstimate est = {0, 0, false, s.mode};
-
-    // A meaningful estimate needs a running compressor, both water-loop temps,
-    // and the electrical power — all decoded from this state.
+// Shared gate: running compressor (not defrosting), real power and sane inputs.
+static bool performance_preconditions(const MaconState &s, const PerformanceInputs &in) {
     const bool running = s.compressor_freq_valid && s.compressor_freq > 0;
-    if (!running || !s.outlet_valid || !s.inlet_valid || !s.realtime_power_valid) {
-        return est;
+    if (!running || s.defrost_on || !s.realtime_power_valid || s.realtime_power_w == 0) {
+        return false;
     }
-    // Consumer-supplied external inputs must be sane, and power/dT non-zero.
-    if (in.water_flow_lpm <= 0.0f || in.fluid_cp_j_per_kgK <= 0.0f ||
-        in.fluid_density_kg_per_l <= 0.0f || s.realtime_power_w == 0) {
-        return est;
-    }
-    const int dT_c_i = static_cast<int>(s.outlet_c) - static_cast<int>(s.inlet_c);
-    if (dT_c_i == 0) {
-        return est;  // whole-°C resolution: dT 0 is below the noise floor
-    }
+    return in.water_flow_lpm > 0.0f && in.fluid_cp_j_per_kgK > 0.0f &&
+           in.fluid_density_kg_per_l > 0.0f;
+}
 
-    // Water-side heat: Q = m_dot * cp * dT (dT in whole °C == K). Signed, so
-    // cooling (outlet < inlet) yields a negative thermal_w.
+// Water-side heat Q = m_dot * cp * dT and COP = |Q| / power. dT is supply minus
+// return (K), so cooling yields a negative thermal_w.
+static PerformanceEstimate performance_from_delta(const MaconState &s,
+                                                  const PerformanceInputs &in,
+                                                  float dT_c) {
+    PerformanceEstimate est = {0, 0, false, s.mode};
     const float mdot_kg_s = in.water_flow_lpm * in.fluid_density_kg_per_l / 60.0f;
-    const float thermal   = mdot_kg_s * in.fluid_cp_j_per_kgK * static_cast<float>(dT_c_i);
+    const float thermal   = mdot_kg_s * in.fluid_cp_j_per_kgK * dT_c;
     est.thermal_w = static_cast<int32_t>(thermal);
     est.direction = s.mode;
 
@@ -293,6 +287,38 @@ PerformanceEstimate estimate_performance(const MaconState &s,
     est.cop_x100 = static_cast<uint16_t>(cop_x100f);
     est.valid    = true;
     return est;
+}
+
+PerformanceEstimate estimate_performance(const MaconState &s,
+                                         const PerformanceInputs &in) {
+    const PerformanceEstimate invalid = {0, 0, false, s.mode};
+    if (!performance_preconditions(s, in) || !s.outlet_valid || !s.inlet_valid) {
+        return invalid;
+    }
+    const int dT_c_i = static_cast<int>(s.outlet_c) - static_cast<int>(s.inlet_c);
+    if (dT_c_i == 0) {
+        return invalid;  // whole-°C resolution: dT 0 is below the noise floor
+    }
+    return performance_from_delta(s, in, static_cast<float>(dT_c_i));
+}
+
+PerformanceEstimate estimate_performance_with_temps(const MaconState &s,
+                                                    float supply_c, float return_c,
+                                                    const PerformanceInputs &in,
+                                                    float min_delta_c) {
+    const PerformanceEstimate invalid = {0, 0, false, s.mode};
+    if (!performance_preconditions(s, in)) {
+        return invalid;
+    }
+    const float dT = supply_c - return_c;
+    if (!(dT == dT) || (dT < 0.0f ? -dT : dT) < min_delta_c) {
+        return invalid;  // NaN, or below the sensors' noise floor
+    }
+    if ((s.mode == MaconMode::Heating && dT < 0.0f) ||
+        (s.mode == MaconMode::Cooling && dT > 0.0f)) {
+        return invalid;  // heat flowing the wrong way: sensors swapped or unsettled
+    }
+    return performance_from_delta(s, in, dT);
 }
 
 size_t encode_cooling_setpoint(uint8_t *buf, size_t buf_capacity, int celsius) {
