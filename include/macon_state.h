@@ -217,6 +217,11 @@ enum class MaconOperation : uint8_t {
 /// icon bit would falsely report Idle.
 MaconOperation decode_operation(const MaconState &s);
 
+/// Live heating/cooling direction: the reg2129 reversing-valve bit, else the
+/// working mode, else reg2049. Unknown in Auto (hot water + cooling) without
+/// the live bit, because reg2049 can stay at "cooling" while the unit heats.
+MaconMode live_direction(const MaconState &s);
+
 /// Human-readable name for a MaconOperation (e.g. "Heating", "Idle", "Defrost").
 const char *operation_name(MaconOperation op);
 
@@ -246,7 +251,7 @@ struct PerformanceEstimate {
     int32_t   thermal_w;   // water-side heat: + = heating (delivered), - = cooling (removed)
     uint16_t  cop_x100;    // COP x100 (e.g. 392 = 3.92); 0 when !valid
     bool      valid;       // false if compressor off / temps absent / power 0 / dT 0
-    MaconMode direction;   // heating vs cooling (from reversing valve)
+    MaconMode direction;   // heating vs cooling (live_direction())
 };
 
 /// Estimate water-side thermal output and COP from a decoded state plus the

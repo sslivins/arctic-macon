@@ -220,30 +220,45 @@ MaconOperation decode_operation(const MaconState &s) {
         return MaconOperation::Idle;
     }
 
+    switch (live_direction(s)) {
+        case MaconMode::Cooling:
+            return MaconOperation::Cooling;
+        case MaconMode::Heating:
+            return MaconOperation::Heating;
+        default:
+            if (s.working_mode_valid &&
+                s.working_mode == MaconWorkingMode::HotWaterCooling) {
+                return MaconOperation::Unknown;   // either side may be active
+            }
+            return MaconOperation::Heating;
+    }
+}
+
+MaconMode live_direction(const MaconState &s) {
     if (s.cooling_on_valid) {
-        return s.cooling_on ? MaconOperation::Cooling
-                            : MaconOperation::Heating;
+        return s.cooling_on ? MaconMode::Cooling : MaconMode::Heating;
     }
 
     if (s.working_mode_valid) {
         switch (s.working_mode) {
             case MaconWorkingMode::Cooling:
-                return MaconOperation::Cooling;
+                return MaconMode::Cooling;
             case MaconWorkingMode::Heating:
             case MaconWorkingMode::Mode2:
             case MaconWorkingMode::Mode3:
             case MaconWorkingMode::Mode4:
             case MaconWorkingMode::HotWater:
-                return MaconOperation::Heating;
+                return MaconMode::Heating;
             case MaconWorkingMode::HotWaterCooling:
-                return MaconOperation::Unknown;   // either side may be active
+                // reg2049 is stale in Auto (it can read cooling while the unit
+                // heats the tank), so don't fall back to it.
+                return MaconMode::Unknown;
             default:
                 break;
         }
     }
 
-    return (s.mode == MaconMode::Cooling) ? MaconOperation::Cooling
-                                          : MaconOperation::Heating;
+    return s.mode;
 }
 
 const char *operation_name(MaconOperation op) {
@@ -273,11 +288,10 @@ static bool performance_preconditions(const MaconState &s, const PerformanceInpu
 static PerformanceEstimate performance_from_delta(const MaconState &s,
                                                   const PerformanceInputs &in,
                                                   float dT_c) {
-    PerformanceEstimate est = {0, 0, false, s.mode};
+    PerformanceEstimate est = {0, 0, false, live_direction(s)};
     const float mdot_kg_s = in.water_flow_lpm * in.fluid_density_kg_per_l / 60.0f;
     const float thermal   = mdot_kg_s * in.fluid_cp_j_per_kgK * dT_c;
     est.thermal_w = static_cast<int32_t>(thermal);
-    est.direction = s.mode;
 
     // COP is the magnitude of heat moved over electrical input.
     const float cop = (thermal < 0.0f ? -thermal : thermal) /
@@ -291,7 +305,7 @@ static PerformanceEstimate performance_from_delta(const MaconState &s,
 
 PerformanceEstimate estimate_performance(const MaconState &s,
                                          const PerformanceInputs &in) {
-    const PerformanceEstimate invalid = {0, 0, false, s.mode};
+    const PerformanceEstimate invalid = {0, 0, false, live_direction(s)};
     if (!performance_preconditions(s, in) || !s.outlet_valid || !s.inlet_valid) {
         return invalid;
     }
@@ -306,7 +320,8 @@ PerformanceEstimate estimate_performance_with_temps(const MaconState &s,
                                                     float supply_c, float return_c,
                                                     const PerformanceInputs &in,
                                                     float min_delta_c) {
-    const PerformanceEstimate invalid = {0, 0, false, s.mode};
+    const MaconMode dir = live_direction(s);
+    const PerformanceEstimate invalid = {0, 0, false, dir};
     if (!performance_preconditions(s, in)) {
         return invalid;
     }
@@ -314,8 +329,8 @@ PerformanceEstimate estimate_performance_with_temps(const MaconState &s,
     if (!(dT == dT) || (dT < 0.0f ? -dT : dT) < min_delta_c) {
         return invalid;  // NaN, or below the sensors' noise floor
     }
-    if ((s.mode == MaconMode::Heating && dT < 0.0f) ||
-        (s.mode == MaconMode::Cooling && dT > 0.0f)) {
+    if ((dir == MaconMode::Heating && dT < 0.0f) ||
+        (dir == MaconMode::Cooling && dT > 0.0f)) {
         return invalid;  // heat flowing the wrong way: sensors swapped or unsettled
     }
     return performance_from_delta(s, in, dT);

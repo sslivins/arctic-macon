@@ -268,6 +268,7 @@ int main() {
         // Cooling: outlet 12, inlet 14 -> dT -2 °C; power 1400 W.
         std::memset(r, 0, sizeof(r));
         set_reg(r, REG_OPERATING_MODE, 4);       // cooling
+        set_reg(r, REG_ICON_BITS2, 0x04);        // reversing valve: cooling
         set_reg(r, REG_COMPRESSOR_FREQ, 30);     // running
         set_reg(r, REG_OUTLET_WATER_TEMP, 12);
         set_reg(r, REG_INLET_WATER_TEMP, 14);
@@ -341,6 +342,32 @@ int main() {
         CHECK(!estimate_performance_with_temps(off, 41.25f, 37.75f, water40).valid);
         CHECK(!estimate_performance_with_temps(hd, 41.25f, 37.75f, water40).valid);
         CHECK(!estimate_performance_with_temps(h, NAN, 37.75f, water40).valid);
+
+        // Auto (hot water + cooling) heating the tank: reg2049 stays at 4
+        // ("cooling") but the live reversing-valve bit says heating. The
+        // estimate must follow the live bit, not reject the positive dT.
+        std::memset(r, 0, sizeof(r));
+        set_reg(r, REG_OPERATING_MODE, 4);       // stale "cooling"
+        set_reg(r, REG_WORKING_MODE, 6);         // hot water + cooling (Auto)
+        set_reg(r, REG_ICON_BITS2, 0x00);        // reversing valve: heating
+        set_reg(r, REG_COMPRESSOR_FREQ, 58);
+        set_reg(r, REG_REALTIME_POWER, 35);      // 3500 W
+        MaconState auto_heat;
+        decode_state(BASE, r, COUNT, &auto_heat);
+        CHECK(auto_heat.mode == MaconMode::Cooling);
+        CHECK(live_direction(auto_heat) == MaconMode::Heating);
+        PerformanceEstimate xa = estimate_performance_with_temps(auto_heat, 32.88f, 28.5f, water40);
+        CHECK(xa.valid);
+        CHECK(xa.direction == MaconMode::Heating);
+        CHECK(xa.thermal_w > 0);
+        CHECK(!estimate_performance_with_temps(auto_heat, 28.5f, 32.88f, water40).valid);
+
+        // Auto without the live bit: direction unknown, so no sign check.
+        MaconState auto_nobit = auto_heat;
+        auto_nobit.cooling_on_valid = false;
+        CHECK(live_direction(auto_nobit) == MaconMode::Unknown);
+        CHECK(estimate_performance_with_temps(auto_nobit, 32.88f, 28.5f, water40).valid);
+        CHECK(decode_operation(auto_nobit) != MaconOperation::Cooling);
     }
 
     // --- setpoint limits ---------------------------------------------------
