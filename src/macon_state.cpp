@@ -28,7 +28,7 @@ MaconWorkingMode decode_working_mode(uint16_t raw) {
     switch (static_cast<uint8_t>(raw & 0xFF)) {
         case 0: return MaconWorkingMode::Cooling;
         case 1: return MaconWorkingMode::Heating;
-        case 2: return MaconWorkingMode::Mode2;
+        case 2: return MaconWorkingMode::FreezeProtection;
         case 3: return MaconWorkingMode::Mode3;
         case 4: return MaconWorkingMode::Mode4;
         case 5: return MaconWorkingMode::HotWater;
@@ -41,7 +41,7 @@ const char *working_mode_name(MaconWorkingMode mode) {
     switch (mode) {
         case MaconWorkingMode::Cooling:         return "Cooling";
         case MaconWorkingMode::Heating:         return "Heating";
-        case MaconWorkingMode::Mode2:           return "Mode 2";
+        case MaconWorkingMode::FreezeProtection: return "Freeze protection";
         case MaconWorkingMode::Mode3:           return "Mode 3";
         case MaconWorkingMode::Mode4:           return "Mode 4";
         case MaconWorkingMode::HotWater:        return "Hot water";
@@ -244,7 +244,7 @@ MaconMode live_direction(const MaconState &s) {
             case MaconWorkingMode::Cooling:
                 return MaconMode::Cooling;
             case MaconWorkingMode::Heating:
-            case MaconWorkingMode::Mode2:
+            case MaconWorkingMode::FreezeProtection:
             case MaconWorkingMode::Mode3:
             case MaconWorkingMode::Mode4:
             case MaconWorkingMode::HotWater:

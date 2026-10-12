@@ -124,7 +124,7 @@ static void test_flags_and_enums() {
     }
 
     const MaconFieldDesc *wm = macon_field_find("working_mode");
-    for (const char *key : { "cooling", "heating", "mode_2", "mode_3", "mode_4",
+    for (const char *key : { "cooling", "heating", "freeze_protection", "mode_3", "mode_4",
                              "hot_water", "hot_water_cooling" }) {
         const MaconWorkingMode m = macon_working_mode_from_key(key);
         CHECK(m != MaconWorkingMode::Unknown);
@@ -139,13 +139,16 @@ static void test_flags_and_enums() {
     CHECK(macon_working_mode_from_key("turbo") == MaconWorkingMode::Unknown);
     // Pre-#36 keys are still accepted as aliases, but never emitted.
     CHECK(macon_working_mode_from_key("floor_heating") == MaconWorkingMode::Heating);
-    CHECK(macon_working_mode_from_key("fan_coil_heating") == MaconWorkingMode::Mode2);
+    CHECK(macon_working_mode_from_key("mode_2") == MaconWorkingMode::Unknown);
+    CHECK(macon_working_mode_from_key("fan_coil_heating") == MaconWorkingMode::Unknown);
     CHECK(macon_working_mode_from_key("auto") == MaconWorkingMode::HotWaterCooling);
     CHECK(std::strcmp(macon_working_mode_key(MaconWorkingMode::HotWaterCooling),
                       "hot_water_cooling") == 0);
     CHECK(working_mode_selectable(MaconWorkingMode::Heating));
     CHECK(working_mode_selectable(MaconWorkingMode::HotWaterCooling));
-    CHECK(!working_mode_selectable(MaconWorkingMode::Mode2));
+    CHECK(!working_mode_selectable(MaconWorkingMode::FreezeProtection));
+    CHECK(std::strcmp(working_mode_name(MaconWorkingMode::FreezeProtection),
+                      "Freeze protection") == 0);
     CHECK(!working_mode_selectable(MaconWorkingMode::Unknown));
     {
         MaconImage img;

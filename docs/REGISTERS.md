@@ -84,7 +84,7 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2093 | — | Cooling setpoint | signed °C (wire 0x0000) |
 | 2094 | — | Heating setpoint | signed °C (wire 0x0001, writable; used by modes 1 and 2) |
 | 2095 | — | Hot-water setpoint | signed °C (wire 0x0002) |
-| 2096 | — | Selected working mode | 0 cooling, 1 heating, 5 hot water, 6 hot water / cooling (wire 0x0003, writable). 2/3/4 are heating variants, decoded as "Mode 2/3/4" but not writable: 2 = flashing heating icon with the 2094 setpoint, 3 = solid icon with holding reg2010, 4 = flashing icon with holding reg2011. 7+ are out of range. |
+| 2096 | — | Selected working mode | 0 cooling, 1 heating, 5 hot water, 6 hot water / cooling (wire 0x0003, writable). 2/3/4 are heating variants, decoded but not writable: 2 = flashing heating icon with the 2094 setpoint, decoded as "Freeze protection" (`freeze_protection`) because the field units switch to it while idle whenever inlet/outlet water reaches 2.0 °C, run the pump ~30 s, then return to the selected mode; 3 =  solid icon with holding reg2010, 4 = flashing icon with holding reg2011. 7+ are out of range. |
 | 2101 | A13 | AC input voltage | ×10 = V |
 | 2104 | A5  | Main EEV | steps |
 | 2113 | A8  | IPM temp | signed °C |
