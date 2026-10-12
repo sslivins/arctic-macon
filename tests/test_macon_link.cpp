@@ -167,7 +167,7 @@ int main() {
     }
 
     // Unknown and the read-only modes 2-4 are refused without touching the bus.
-    for (MaconWorkingMode m : { MaconWorkingMode::Unknown, MaconWorkingMode::Mode2,
+    for (MaconWorkingMode m : { MaconWorkingMode::Unknown, MaconWorkingMode::FreezeProtection,
                                 MaconWorkingMode::Mode3, MaconWorkingMode::Mode4 }) {
         FakeTransport t;
         MaconLink link(t);

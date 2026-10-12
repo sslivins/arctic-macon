@@ -77,7 +77,7 @@ struct ModeKey { MaconWorkingMode mode; const char *key; };
 constexpr ModeKey kModeKeys[] = {
     { MaconWorkingMode::Cooling,         "cooling" },
     { MaconWorkingMode::Heating,         "heating" },
-    { MaconWorkingMode::Mode2,           "mode_2" },
+    { MaconWorkingMode::FreezeProtection, "freeze_protection" },
     { MaconWorkingMode::Mode3,           "mode_3" },
     { MaconWorkingMode::Mode4,           "mode_4" },
     { MaconWorkingMode::HotWater,        "hot_water" },
@@ -87,7 +87,6 @@ constexpr ModeKey kModeKeys[] = {
 // input so existing automations keep working; never emitted.
 constexpr ModeKey kModeKeyAliases[] = {
     { MaconWorkingMode::Heating,         "floor_heating" },
-    { MaconWorkingMode::Mode2,           "fan_coil_heating" },
     { MaconWorkingMode::HotWaterCooling, "auto" },
 };
 }  // namespace

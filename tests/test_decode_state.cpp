@@ -45,7 +45,7 @@ int main() {
     CHECK(std::strcmp(mode_name(MaconMode::Unknown), "Unknown") == 0);
     CHECK(decode_working_mode(0) == MaconWorkingMode::Cooling);
     CHECK(decode_working_mode(1) == MaconWorkingMode::Heating);
-    CHECK(decode_working_mode(2) == MaconWorkingMode::Mode2);
+    CHECK(decode_working_mode(2) == MaconWorkingMode::FreezeProtection);
     CHECK(decode_working_mode(3) == MaconWorkingMode::Mode3);
     CHECK(decode_working_mode(4) == MaconWorkingMode::Mode4);
     CHECK(decode_working_mode(5) == MaconWorkingMode::HotWater);

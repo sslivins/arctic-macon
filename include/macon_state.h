@@ -56,7 +56,10 @@ const char *mode_name(MaconMode m);
 // controller (2026-09-26, arctic-macon#36):
 //   0 cooling icon, setpoint reg2093          (in the OEM mode-button cycle)
 //   1 heating icon (solid), setpoint reg2094
-//   2 heating icon (flashing), setpoint reg2094
+//   2 heating icon (flashing), setpoint reg2094. In the field this is the
+//     unit's anti-freeze (freeze protection) state: while idle it switches to
+//     2 when inlet/outlet water reaches 2.0 C, runs the pump ~30 s to pull warm
+//     water through, then returns to the selected mode.
 //   3 heating icon (solid), setpoint holding reg2010 (P2, not editable)
 //   4 heating icon (flashing), setpoint holding reg2011 (P3)
 //   5 hot water icon, setpoint reg2095        (in the cycle)
@@ -67,7 +70,7 @@ const char *mode_name(MaconMode m);
 enum class MaconWorkingMode : uint8_t {
     Cooling = 0,
     Heating = 1,
-    Mode2 = 2,
+    FreezeProtection = 2,
     Mode3 = 3,
     Mode4 = 4,
     HotWater = 5,
@@ -76,7 +79,7 @@ enum class MaconWorkingMode : uint8_t {
 };
 
 MaconWorkingMode decode_working_mode(uint16_t raw);
-/// Natural-English label ("Cooling", "Heating", "Mode 2", "Hot water",
+/// Natural-English label ("Cooling", "Heating", "Freeze protection", "Hot water",
 /// "Hot water / cooling", "Unknown").
 const char *working_mode_name(MaconWorkingMode mode);
 /// True for the modes a user may select (Cooling, Heating, HotWater,
