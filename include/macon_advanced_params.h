@@ -113,7 +113,7 @@ struct AdvancedParam {
     const char    *category;         // Display grouping (see advanced_category_at)
     int16_t        min_val;          // Inclusive lower bound (engineering units)
     int16_t        max_val;          // Inclusive upper bound
-    int16_t        default_val;      // Vendor-doc default
+    int16_t        default_val;      // Factory default (verified on never-modified units)
     const char    *unit;             // "\xC2\xB0""C", "Hz", "min", ... or nullptr
     bool           is_signed;        // Value is signed (negative allowed)
     bool           needs_sim_confirm;// reg unknown OR write-locked -> writes refused
