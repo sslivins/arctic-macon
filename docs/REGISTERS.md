@@ -116,6 +116,8 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2007 | — | Run-state / fault code | `0x00` off, `0x20` hot-water RUN, low/high = P-faults |
 | 2008 | o1  | Water tank temp | signed °C (real immersed DHW probe) |
 | 2012 | Cn13 | Hot-water ceiling | see setpoints section |
+| 2013 | A11 | High pressure | Signed byte, shown as-is (bench-verified 2026-11-03: wrote 9, OEM A11 = 9; the live value 250 shows as −6). Constant −6 on both units, so probably no sensor fitted. *Not yet decoded by the library.* |
+| 2014 | A12 | Low pressure | Raw byte, shown as-is (bench-verified 2026-11-03: wrote 7, OEM A12 = 7). Constant 3 on both units, so probably no sensor fitted. *Not yet decoded by the library.* |
 | 2048 | o6  | Auxiliary (EVI) EEV opening | Raw byte, shown as-is (bench-verified 2026-11-03: wrote 29, OEM o6 = 29; Arctic docs: "Auxiliary elec. expansion valve degree"). 0 almost always; opens only in some heating/idle conditions. *Not yet decoded by the library.* |
 | 2049 | — | Operating direction | `0x00` heating, `0x04` cooling (reversing valve) |
 
@@ -142,6 +144,10 @@ of these bytes.
 Status: ❌ current mapping looks wrong · ❓ live, with a hypothesis ·
 🔍 live, meaning unknown · 🔒 constant, probably a setting or unused.
 
+Every code on the OEM controller's display list (Arctic manual: o1–o4, o6,
+A1–A14; o5 is "not used") is now mapped to a byte in the tables above. The
+bytes below are **not** shown on the OEM display at all.
+
 ### Disputed and candidate mappings
 
 | reg | wire offset | status | observed | hypothesis | how to verify |
@@ -167,8 +173,8 @@ treated as signed.
 |-----|-------------|-------|-----|-------------|-------|
 | 2097 | 4 | 1 (HP1 showed 5 twice) | 2004–2006 | 54–56 | 0 |
 | 2098 | 5 | 0 | 2009 | 59 | 35 (2010 and 2011 next to it are the mode 3/4 setpoints, both 45) |
-| 2099 | 6 | 15 | 2013 | 63 | 250 (signed? −6) |
-| 2100 | 7 | 30 | 2014 | 64 | 3 |
+| 2099 | 6 | 15 | | | |
+| 2100 | 7 | 30 | | | |
 | 2102 | 9 | 6 | 2020 | 70 | 4 |
 | 2103 | 10 | 9 | 2021 | 71 | 45 |
 | 2105 | 12 | 35 | 2022 | 72 | 0 |
