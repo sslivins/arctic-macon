@@ -125,6 +125,24 @@ The installer **Cn** advanced-parameter block (`reg = 2000 + Cn`, roughly
 `reg2013 … reg2057`) is documented and guarded separately in
 `macon_advanced_params.{h,cpp}` (validate-only, reject-not-clamp; no write path).
 
+### Advanced-parameter quirks
+
+Arctic's "Appendix C - Advanced parameter setting V4 (Cn31)" is the source for
+the AP table, but it isn't reliable on these points:
+
+- **Defaults.** The library uses factory values read from two never-modified
+  units through the OEM wired controller (2026-11-03), not the doc's Default
+  column. They differ for K1–K7, AP28, AP29, AP34, AP35, AP39, AP41, AP42 and
+  AP46; see the comment above `s_advanced[]`.
+- **AP39 (`reg2039`) is ambiguous.** The doc calls it "Whether reduce the
+  working frequency or not when reach the setting temperature", which reads as
+  a yes/no setting. Yet it gives a 10–120 min range and says "40 is not
+  reducing frequency, and other value is reducing frequency", which makes 40
+  alone a sentinel and leaves unclear what the minutes count. The doc's default
+  is 40 (off), but the factory value is 50 (on, by that rule). We expose it as
+  the doc describes (10–120 min) and haven't confirmed any of this against the
+  unit's behaviour.
+
 ## Unverified registers
 
 This is the to-do list for the map: every byte in either wire window that isn't
