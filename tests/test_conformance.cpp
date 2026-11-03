@@ -91,8 +91,8 @@ static void test_real_capture_decode() {
     CHECK(s.heating_setpoint_valid && s.heating_setpoint == 40);   // 2094 = 0x28
     CHECK(s.hot_water_setpoint_valid && s.hot_water_setpoint == 50); // 2095 = 0x32
     CHECK(s.working_mode_valid && s.working_mode == MaconWorkingMode::HotWater); // 2096 = 5
-    CHECK(s.ac_voltage_valid && s.ac_voltage == 230);              // 2101 = 23 (x10)
-    CHECK(s.primary_eev_valid && s.primary_eev == 17);             // 2104
+    CHECK(s.ac_voltage_valid && s.ac_voltage == 230);              // 2142 = 230 (x1)
+    CHECK(s.primary_eev_valid && s.primary_eev == 19);             // 2140
     CHECK(s.ipm_valid && s.ipm_c == 12);                           // 2113
     CHECK(s.realtime_power_valid && s.realtime_power_w == 0);      // 2114
     CHECK(s.outlet_valid && s.outlet_c == 10);                     // 2132
@@ -103,6 +103,10 @@ static void test_real_capture_decode() {
     CHECK(s.suction_valid && s.suction_c == 15);                   // 2137
     CHECK(s.discharge_valid && s.discharge_c == 14);               // 2138
     CHECK(s.compressor_freq_valid && s.compressor_freq == 0);      // 2141
+    // Holding window: refrigerant pressures (no transducers fitted) + aux EEV.
+    CHECK(s.high_pressure_valid && s.high_pressure == -6);         // 2013 = 0xfa
+    CHECK(s.low_pressure_valid && s.low_pressure == 3);            // 2014
+    CHECK(s.aux_eev_valid && s.aux_eev == 0);                      // 2048
     CHECK(!s.compressor_on && !s.pump_on && !s.defrost_on && !s.fan_on); // 2129/2130 = 0
     // Holding window (reg 2000..2057).
     CHECK(s.ac_current_valid && s.ac_current == 0);                // 2000

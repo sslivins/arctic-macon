@@ -18,10 +18,10 @@ struct RegEntry {
 // MACON layout — see arctic_registers.h header comment. Every wire register is
 // one byte. Temperatures are whole-°C signed bytes (scale 1.0, NOT the legacy
 // ÷2). Electrical scales validated against synchronized on-unit A-code reads:
-//   AC voltage  raw 23  → 230 V   (x10)
+//   AC voltage  raw 230 → 230 V   (x1, reg2142)
 //   DC bus      raw 36  → 360 V   (x10)
 //   AC current  raw 12  → 12 A    (x1)
-//   power (A9)  raw 28  → 2800 W  (x100)  [power ≈ V_raw*I_raw/10 confirmed x1]
+//   power (A9)  raw 28  → 2800 W  (x100)  [A9 ≈ V x I, median ratio 1.02 on HP1]
 // Only confirmed Macon registers are named; unlisted addresses decode as raw
 // "Unknown" bytes rather than guessing at legacy ECO-600 meanings.
 static const RegEntry s_registers[] = {
@@ -32,13 +32,14 @@ static const RegEntry s_registers[] = {
     { 2007, { "Fault(RunState)",       nullptr, 1.0f,   false } },  // bitfield
     { 2008, { "Water Tank Temp",        "°C",    1.0f,   true  } },  // o1
     { 2012, { "Hot-Water Ceiling",      "°C",    1.0f,   false } },  // AP13 max hot-water temp (ceiling)
+    { 2013, { "High Pressure",          nullptr, 1.0f,   true  } },  // A11 (raw; -6 = no sensor)
+    { 2014, { "Low Pressure",           nullptr, 1.0f,   false } },  // A12 (raw; 3 = no sensor)
+    { 2048, { "Aux EEV",                nullptr, 1.0f,   false } },  // o6
 
     // "Telemetry" window (base 2093)
     { 2093, { "Cooling Setpoint",       "°C",    1.0f,   true  } },  // wire 0x0000 (controller-written)
     { 2094, { "Heating Setpoint",       "°C",    1.0f,   true  } },  // wire 0x0001
     { 2095, { "Hot Water Setpoint",     "°C",    1.0f,   true  } },  // wire 0x0002 (controller-written)
-    { 2101, { "AC Voltage",             "V",     10.0f,  false } },  // A13
-    { 2104, { "Main EEV",               "steps", 1.0f,   false } },  // A5
     { 2113, { "IPM Temp",               "°C",    1.0f,   true  } },  // A8
     { 2114, { "Real-time Power",        "W",     100.0f, false } },  // A9
     { 2125, { "Fault(SensorEE)",       nullptr, 1.0f,   false } },  // bitfield
@@ -54,7 +55,9 @@ static const RegEntry s_registers[] = {
     { 2136, { "Coil Temp",              "°C",    1.0f,   true  } },  // A2
     { 2137, { "Suction Temp",           "°C",    1.0f,   true  } },  // A3
     { 2138, { "Discharge Temp",         "°C",    1.0f,   true  } },  // A1
+    { 2140, { "Main EEV",               nullptr, 1.0f,   false } },  // A5
     { 2141, { "Compressor Freq",        "Hz",    1.0f,   false } },  // A14
+    { 2142, { "AC Voltage",             "V",     1.0f,   false } },  // A13
 };
 // clang-format on
 

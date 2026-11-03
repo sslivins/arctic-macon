@@ -85,8 +85,6 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2094 | — | Heating setpoint | signed °C (wire 0x0001, writable; used by modes 1 and 2) |
 | 2095 | — | Hot-water setpoint | signed °C (wire 0x0002) |
 | 2096 | — | Selected working mode | 0 cooling, 1 heating, 5 hot water, 6 hot water / cooling (wire 0x0003, writable). 2/3/4 are heating variants, decoded but not writable: 2 = flashing heating icon with the 2094 setpoint, decoded as "Freeze protection" (`freeze_protection`) because the field units switch to it while idle whenever inlet/outlet water reaches 2.0 °C, run the pump ~30 s, then return to the selected mode; 3 =  solid icon with holding reg2010, 4 = flashing icon with holding reg2011. 7+ are out of range. |
-| 2101 | ~~A13~~ | ~~AC input voltage~~ | ❌ **Wrong, but the library still decodes it this way (fix pending).** OEM A13 comes from 2142; see [Unverified registers](#unverified-registers) |
-| 2104 | ~~A5~~  | ~~Main EEV~~ | ❌ **Wrong, but the library still decodes it this way (fix pending).** OEM A5 comes from 2140; see [Unverified registers](#unverified-registers) |
 | 2113 | A8  | IPM temp | signed °C |
 | 2114 | A9  | Real-time power | ×100 = W |
 | 2125 | — | Fault: sensor/EE/comm E-codes | bitfield |
@@ -102,9 +100,9 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2136 | A2  | Coil temp | signed °C |
 | 2137 | A3  | Suction temp | signed °C |
 | 2138 | A1  | Discharge temp | signed °C |
-| 2140 | A5  | Main EEV opening | Raw byte, shown as-is by the OEM (bench-verified 2026-11-03: wrote 37, OEM A5 = 37). 48 in cooling, 12–20 regulating in heating. ×10 = steps is plausible (manual opening AP50 is 0–500) but unconfirmed. *Not yet decoded by the library.* |
+| 2140 | A5  | Main EEV opening (`primary_eev`) | Raw byte, shown as-is by the OEM (bench-verified 2026-11-03: wrote 37, OEM A5 = 37). 48 in cooling, 12–20 regulating in heating. ×10 = steps is plausible (manual opening AP50 is 0–500) but unconfirmed, so the library reports the raw value with no unit. Before 2026-11 the library read A5 from 2104, a constant setting byte. |
 | 2141 | A14 | Compressor frequency | Hz |
-| 2142 | A13 | AC input voltage | V ×1 (live 217–245). The OEM shows V ÷ 10, truncated (bench-verified 2026-11-03: 211 → A13 21, 187 → A13 18). *Not yet decoded by the library.* |
+| 2142 | A13 | AC input voltage (`ac_voltage`) | V ×1 (live 217–245). The OEM shows V ÷ 10, truncated (bench-verified 2026-11-03: 211 → A13 21, 187 → A13 18). Before 2026-11 the library read A13 from 2101 ×10, a constant setting byte that always gave 230 V. |
 
 ## Holding window (`reg2000 … reg2057`)
 
@@ -116,9 +114,9 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2007 | — | Run-state / fault code | `0x00` off, `0x20` hot-water RUN, low/high = P-faults |
 | 2008 | o1  | Water tank temp | signed °C (real immersed DHW probe) |
 | 2012 | Cn13 | Hot-water ceiling | see setpoints section |
-| 2013 | A11 | High pressure | Signed byte, shown as-is (bench-verified 2026-11-03: wrote 9, OEM A11 = 9; the live value 250 shows as −6). Constant −6 on both units, so probably no sensor fitted. *Not yet decoded by the library.* |
-| 2014 | A12 | Low pressure | Raw byte, shown as-is (bench-verified 2026-11-03: wrote 7, OEM A12 = 7). Constant 3 on both units, so probably no sensor fitted. *Not yet decoded by the library.* |
-| 2048 | o6  | Auxiliary (EVI) EEV opening | Raw byte, shown as-is (bench-verified 2026-11-03: wrote 29, OEM o6 = 29; Arctic docs: "Auxiliary elec. expansion valve degree"). 0 almost always; opens only in some heating/idle conditions. *Not yet decoded by the library.* |
+| 2013 | A11 | High pressure (`high_pressure`) | Signed byte, shown as-is (bench-verified 2026-11-03: wrote 9, OEM A11 = 9; the live value 250 shows as −6). Unit and scale unknown. Constant −6 on both units, and every OEM log sent to Arctic shows A11 = −6, so no transducer is fitted. The library decodes it for units that have one; a UI should hide it by default. |
+| 2014 | A12 | Low pressure (`low_pressure`) | Raw byte, shown as-is (bench-verified 2026-11-03: wrote 7, OEM A12 = 7). Unit and scale unknown. Constant 3 on both units and in every OEM log sent to Arctic, so no transducer is fitted. Decoded for units that have one; hide by default. |
+| 2048 | o6  | Auxiliary (EVI) EEV opening (`aux_eev`) | Raw byte, shown as-is (bench-verified 2026-11-03: wrote 29, OEM o6 = 29; Arctic docs: "Auxiliary elec. expansion valve degree"). 0 almost always; opens only in some heating/idle conditions. |
 | 2049 | — | Operating direction | `0x00` heating, `0x04` cooling (reversing valve) |
 
 The installer **Cn** advanced-parameter block (`reg = 2000 + Cn`, roughly
@@ -170,8 +168,6 @@ bytes below are **not** shown on the OEM display at all.
 
 | reg | wire offset | status | observed | hypothesis | how to verify |
 |-----|-------------|--------|----------|------------|---------------|
-| 2104 | 11 | ❌ confirmed not A5 | 17 in every row on both units; sits inside the constant block 2097–2112 | A setting (meaning unknown) | **Bench 2026-11-03:** 2104 = 21 and then 33; neither OEM A5 nor A13 followed it. Library fix pending |
-| 2101 | 8 | ❌ confirmed not A13 | 23 in every row, so the UI always shows 230 V | A setting (meaning unknown) | **Bench 2026-11-03:** 2101 = 19; OEM A13 didn't show 190 or 19. Library fix pending |
 | 2002 | 52 | ❓ | 0 when stopped; 5–18 while running, about ⅔ of reg2000 (AC current) | Compressor phase current or DC current, A | **Bench 2026-11-03:** 2002 = 13 didn't appear on any A- or o-code the OEM shows, so it's internal-only. Check against a clamp meter on the compressor leads |
 | 2003 | 53 | ❓ (scale is verified) | Running speed is always 690–720 RPM; never higher | Is 700 RPM the maximum or a middle speed? The controller's `MACON_FAN_SPEED_MAX_RPM` = 1000 is a placeholder | Watch for faster speeds in deep cold; check the OEM manual or a fan speed parameter |
 
@@ -193,8 +189,10 @@ treated as signed.
 | 2098 | 5 | 0 | 2009 | 59 | 35 (2010 and 2011 next to it are the mode 3/4 setpoints, both 45) |
 | 2099 | 6 | 15 | | | |
 | 2100 | 7 | 30 | | | |
+| 2101 | 8 | 23 (not A13: a bench write of 19 didn't move OEM A13) | | | |
 | 2102 | 9 | 6 | 2020 | 70 | 4 |
 | 2103 | 10 | 9 | 2021 | 71 | 45 |
+| 2104 | 11 | 17 (not A5: bench writes of 21 and 33 didn't move OEM A5) | | | |
 | 2105 | 12 | 35 | 2022 | 72 | 0 |
 | 2106 | 13 | 0 | 2028 | 78 | 0 |
 | 2108 | 15 | 35 | 2036 | 86 | 95 |
@@ -217,7 +215,9 @@ Consumers should not hard-code the tables above. `macon_fields.h` exposes each
 field by a stable name (e.g. `outlet_water_temp`, `fan_speed`, `fan_on`,
 `working_mode`, `operating_direction`) with its unit, range and step;
 `macon_field_set()` rejects out-of-range or off-step values in strict mode and
-leaves the image untouched. Faults are addressed by code (every site of the
+leaves the image untouched. Each field's `oem_code` is its code on the OEM
+display list (`"A13"`, `"o6"`, …) or `nullptr`, so a UI can label readings
+"A13 - AC Voltage" to match Arctic's manual. Faults are addressed by code (every site of the
 code) or by a single physical site (`macon_fault_sites_for_id`,
 `MaconImage::set_fault_site`) — E28 and E05 each have two sites. The RUN bit
 (reg2007 bit5) is informational and is not a fault site.

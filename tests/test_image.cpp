@@ -47,7 +47,7 @@ int main() {
         CHECK(img.set_temp(MaconField::IpmTemp, 200) == MaconSetResult::Truncated);
     }
 
-    // --- set_value scaling (volts /10, watts /100, amps x1) -----------------
+    // --- set_value scaling (volts x1 / DC /10, watts /100, amps x1) ---------
     {
         MaconImage img;
         CHECK(img.set_value(MaconField::AcVoltage, 230) == MaconSetResult::Ok);
@@ -63,9 +63,14 @@ int main() {
         CHECK(s.realtime_power_valid && s.realtime_power_w == 1200);
         CHECK(s.compressor_freq_valid && s.compressor_freq == 60);
         // Non-multiple of the scale => Truncated, decodes to the floor.
-        CHECK(img.set_value(MaconField::AcVoltage, 231) == MaconSetResult::Truncated);
+        CHECK(img.set_value(MaconField::DcVoltage, 385) == MaconSetResult::Truncated);
         img.decode(&s);
-        CHECK(s.ac_voltage == 230);
+        CHECK(s.dc_voltage == 380);
+        // AC voltage is a plain byte: 231 is exact, 256 overflows.
+        CHECK(img.set_value(MaconField::AcVoltage, 231) == MaconSetResult::Ok);
+        img.decode(&s);
+        CHECK(s.ac_voltage == 231);
+        CHECK(img.set_value(MaconField::AcVoltage, 256) == MaconSetResult::Truncated);
     }
 
     // --- flags + working mode -----------------------------------------------
@@ -181,7 +186,8 @@ int main() {
             MaconField::CompressorFreq, MaconField::FanLevel, MaconField::AcVoltage,
             MaconField::AcCurrent, MaconField::DcVoltage, MaconField::PrimaryEev,
             MaconField::RealtimePower, MaconField::CoolingSetpoint, MaconField::HeatingSetpoint,
-            MaconField::HotWaterSetpoint, MaconField::HotWaterCeiling };
+            MaconField::HotWaterSetpoint, MaconField::HotWaterCeiling, MaconField::AuxEev,
+            MaconField::HighPressure, MaconField::LowPressure };
         for (MaconField f : all) CHECK(macon_field_address(f) != 0);
     }
 

@@ -41,15 +41,18 @@ enum class MaconField : uint8_t {
     // Numeric readings / setpoints — use set_value().
     CompressorFreq,     // Hz (raw)
     FanLevel,           // raw DC motor level
-    AcVoltage,          // volts   (wire = /10)
+    AcVoltage,          // volts   (wire = x1)
     AcCurrent,          // amps    (wire = x1)
     DcVoltage,          // volts   (wire = /10)
-    PrimaryEev,         // steps   (raw)
+    PrimaryEev,         // raw opening, as the OEM shows it (A5)
     RealtimePower,      // watts   (wire = /100)
     CoolingSetpoint,    // whole °C
     HeatingSetpoint,    // whole °C (reg2094, modes 1 and 2)
     HotWaterSetpoint,   // whole °C
     HotWaterCeiling,    // whole °C (AP13 ceiling)
+    AuxEev,             // raw opening (o6)
+    HighPressure,       // raw signed byte (A11; unit unknown)
+    LowPressure,        // raw byte (A12; unit unknown)
 };
 
 // Run-state flags (bit-level fields decoded from icon/run registers).

@@ -28,6 +28,12 @@ constexpr uint16_t REG_DC_BUS_VOLTAGE       = 2001;  // A7  DC bus voltage (x10 
 constexpr uint16_t REG_DC_MOTOR_SPEED       = 2003;  // A10 DC (fan) motor speed
 constexpr uint16_t REG_FAULT_RUNSTATE       = 2007;  // fault bitfield + run indicator
 constexpr uint16_t REG_WATER_TANK_TEMP      = 2008;  // o1  water tank temp
+// A11 / A12. Raw bytes as the OEM shows them (bench-verified 2026-11-03); the
+// unit and scale are unknown. Units without pressure transducers read a
+// constant -6 / 3.
+constexpr uint16_t REG_HIGH_PRESSURE        = 2013;  // A11 high pressure (signed byte)
+constexpr uint16_t REG_LOW_PRESSURE         = 2014;  // A12 low pressure (raw)
+constexpr uint16_t REG_AUX_EEV              = 2048;  // o6  auxiliary (EVI) EEV opening (raw)
 // AP13 "Highest setting temperature of hot water, heating mode" (20~55 °C,
 // default 50). This is the CEILING/limit the mainboard enforces, NOT the live
 // user setpoint (that is REG_HOT_WATER_SETPOINT=2095). Confirmed: dialing the
@@ -63,8 +69,6 @@ constexpr uint16_t REG_HOT_WATER_SETPOINT   = 2095;  // wire addr 0x0002; live h
 // mapped on the bench 2026-09-26: 0=cooling, 1=heating, 2/3/4=heating variants
 // (read-only), 5=hot water, 6=hot water / cooling. See MaconWorkingMode.
 constexpr uint16_t REG_WORKING_MODE         = 2096;
-constexpr uint16_t REG_AC_VOLTAGE           = 2101;  // A13 AC input voltage (x10 = V)
-constexpr uint16_t REG_MAIN_EEV             = 2104;  // A5  main elec. expansion valve
 constexpr uint16_t REG_IPM_TEMP             = 2113;  // A8  IPM module temp
 constexpr uint16_t REG_REALTIME_POWER       = 2114;  // A9  real-time power (x100 = W)
 constexpr uint16_t REG_FAULT_SENSOR_EE      = 2125;  // fault bitfield: sensor/EE/comm E-codes
@@ -80,7 +84,11 @@ constexpr uint16_t REG_COOL_COIL_TEMP       = 2135;  // A6  cool coil temp
 constexpr uint16_t REG_COIL_TEMP            = 2136;  // A2  coil temp
 constexpr uint16_t REG_SUCTION_TEMP         = 2137;  // A3  suction temp
 constexpr uint16_t REG_DISCHARGE_TEMP       = 2138;  // A1  discharge temp
+// A5 / A13, bench-verified 2026-11-03 (the earlier 2104 / 2101 mapping was
+// wrong: both are constant settings bytes).
+constexpr uint16_t REG_MAIN_EEV             = 2140;  // A5  main EEV opening (raw, as the OEM shows it)
 constexpr uint16_t REG_COMPRESSOR_FREQ      = 2141;  // A14 compressor frequency
+constexpr uint16_t REG_AC_VOLTAGE           = 2142;  // A13 AC input voltage (V x1; the OEM shows V/10)
 
 constexpr uint16_t INPUT_START = 2093;
 constexpr uint16_t INPUT_COUNT = 50;     // 2093–2142 (telemetry window, no prefix)
