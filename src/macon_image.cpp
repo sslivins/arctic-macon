@@ -22,7 +22,7 @@ static_assert(MaconImage::window_count() == INPUT_START + INPUT_COUNT - HOLDING_
 namespace {
 
 enum class Kind : uint8_t {
-    SignedTemp,   // whole °C, stored as signed int8 low byte
+    SignedTemp,   // signed int8 low byte (whole °C, or a signed raw reading)
     Raw,          // 0..255, no scaling
     DivTen,       // volts stored as raw = value / 10
     DivHundred,   // watts stored as raw = value / 100
@@ -43,7 +43,7 @@ bool field_map(MaconField f, FieldMap *m) {
         case MaconField::IpmTemp:            *m = { REG_IPM_TEMP,             Kind::SignedTemp }; return true;
         case MaconField::CompressorFreq:     *m = { REG_COMPRESSOR_FREQ,      Kind::Raw };        return true;
         case MaconField::FanLevel:           *m = { REG_DC_MOTOR_SPEED,       Kind::DivTen };     return true;
-        case MaconField::AcVoltage:          *m = { REG_AC_VOLTAGE,           Kind::DivTen };     return true;
+        case MaconField::AcVoltage:          *m = { REG_AC_VOLTAGE,           Kind::Raw };        return true;
         case MaconField::AcCurrent:          *m = { REG_AC_CURRENT,           Kind::Raw };        return true;
         case MaconField::DcVoltage:          *m = { REG_DC_BUS_VOLTAGE,       Kind::DivTen };     return true;
         case MaconField::PrimaryEev:         *m = { REG_MAIN_EEV,             Kind::Raw };        return true;
@@ -52,6 +52,9 @@ bool field_map(MaconField f, FieldMap *m) {
         case MaconField::HeatingSetpoint:    *m = { REG_HEATING_SETPOINT,     Kind::SignedTemp }; return true;
         case MaconField::HotWaterSetpoint:   *m = { REG_HOT_WATER_SETPOINT,   Kind::SignedTemp }; return true;
         case MaconField::HotWaterCeiling:    *m = { REG_HOT_WATER_CEILING,    Kind::Raw };        return true;
+        case MaconField::AuxEev:             *m = { REG_AUX_EEV,              Kind::Raw };        return true;
+        case MaconField::HighPressure:       *m = { REG_HIGH_PRESSURE,        Kind::SignedTemp }; return true;
+        case MaconField::LowPressure:        *m = { REG_LOW_PRESSURE,         Kind::Raw };        return true;
     }
     return false;
 }

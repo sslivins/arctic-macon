@@ -76,7 +76,11 @@ int main() {
     set_reg(regs, REG_HOT_WATER_SETPOINT, 38);  // reg2095 live hot-water setpoint
     set_reg(regs, REG_WORKING_MODE, 1);         // heating
     set_reg(regs, REG_AC_CURRENT, 12);
-    set_reg(regs, REG_AC_VOLTAGE, 23);          // *10 => 230 V
+    set_reg(regs, REG_AC_VOLTAGE, 230);         // x1 => 230 V
+    set_reg(regs, REG_MAIN_EEV, 120);
+    set_reg(regs, REG_AUX_EEV, 35);
+    set_reg(regs, REG_HIGH_PRESSURE, 0xFA);     // signed => -6
+    set_reg(regs, REG_LOW_PRESSURE, 3);
     set_reg(regs, REG_DC_BUS_VOLTAGE, 36);      // *10 => 360 V
     set_reg(regs, REG_COMPRESSOR_FREQ, 55);
     set_reg(regs, REG_REALTIME_POWER, 39);      // *100 => 3900 W
@@ -109,7 +113,11 @@ int main() {
     CHECK(st.cooling_setpoint == 24);
     CHECK(st.cooling_setpoint_valid);
     CHECK(st.ac_current == 12);
-    CHECK(st.ac_voltage == 230);                // x10
+    CHECK(st.ac_voltage == 230);                // x1
+    CHECK(st.primary_eev_valid && st.primary_eev == 120);
+    CHECK(st.aux_eev_valid && st.aux_eev == 35);
+    CHECK(st.high_pressure_valid && st.high_pressure == -6);
+    CHECK(st.low_pressure_valid && st.low_pressure == 3);
     CHECK(st.dc_voltage == 360);                // x10
     CHECK(st.compressor_freq == 55);
     CHECK(st.realtime_power_w == 3900);         // x100

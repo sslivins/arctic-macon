@@ -38,11 +38,15 @@ struct MaconFieldDesc {
     const char    *name;         // canonical API name
     const char    *aliases[2];   // accepted alternative names (nullptr = none)
     MaconFieldKind kind;
-    const char    *unit;         // "C", "Hz", "V", "A", "W", "RPM", "steps"; nullptr if n/a
+    const char    *unit;         // "C", "Hz", "V", "A", "W", "RPM"; nullptr if n/a or raw
     int32_t        min;          // Number: accepted semantic range (inclusive)
     int32_t        max;
     int32_t        step;         // Number: value must be a multiple of step
     bool           verified;     // false = register UNVERIFIED on the real unit
+    // Code the OEM wired controller's display list uses for this reading
+    // ("o1".."o6", "A1".."A14"); nullptr if it isn't on that list. UIs can show
+    // readings as "<code> - <name>" to match the OEM manual.
+    const char    *oem_code;
     // Binding (library-internal meaning; consumers pass the desc back as-is).
     MaconField     field;
     MaconFlag      flag;

@@ -12,35 +12,38 @@ namespace {
 constexpr MaconField kNoField = MaconField::WaterTankTemp;  // unused for non-Number kinds
 constexpr MaconFlag  kNoFlag  = MaconFlag::Fan;             // unused for non-Flag kinds
 
-#define TEMP(name, a0, field, ver) \
-    { name, { a0, nullptr }, MaconFieldKind::Number, "C", -128, 127, 1, ver, field, kNoFlag }
-#define NUM(name, a0, a1, unit, lo, hi, step, ver, field) \
-    { name, { a0, a1 }, MaconFieldKind::Number, unit, lo, hi, step, ver, field, kNoFlag }
+#define TEMP(name, code, field) \
+    { name, { nullptr, nullptr }, MaconFieldKind::Number, "C", -128, 127, 1, true, code, field, kNoFlag }
+#define NUM(name, a0, a1, unit, lo, hi, step, code, field) \
+    { name, { a0, a1 }, MaconFieldKind::Number, unit, lo, hi, step, true, code, field, kNoFlag }
 #define FLAG(name, flag) \
-    { name, { nullptr, nullptr }, MaconFieldKind::Flag, nullptr, 0, 1, 1, true, kNoField, flag }
+    { name, { nullptr, nullptr }, MaconFieldKind::Flag, nullptr, 0, 1, 1, true, nullptr, kNoField, flag }
 }  // namespace
 
 const MaconFieldDesc MACON_FIELDS[] = {
-    TEMP("water_tank_temp",      nullptr, MaconField::WaterTankTemp,      true),
-    TEMP("outlet_water_temp",    nullptr, MaconField::OutletWaterTemp,    true),
-    TEMP("inlet_water_temp",     nullptr, MaconField::InletWaterTemp,     true),
-    TEMP("discharge_temp",       nullptr, MaconField::DischargeTemp,      true),
-    TEMP("suction_temp",         nullptr, MaconField::SuctionTemp,        true),
-    TEMP("outdoor_coil_temp",    nullptr, MaconField::OutdoorCoilTemp,    true),
-    TEMP("indoor_coil_temp",     nullptr, MaconField::IndoorCoilTemp,     true),
-    TEMP("outdoor_ambient_temp", nullptr, MaconField::OutdoorAmbientTemp, true),
-    TEMP("ipm_temp",             nullptr, MaconField::IpmTemp,            true),
-    TEMP("cooling_setpoint",     nullptr, MaconField::CoolingSetpoint,    true),
-    TEMP("heating_setpoint",     nullptr, MaconField::HeatingSetpoint,    true),
-    TEMP("hot_water_setpoint",   nullptr, MaconField::HotWaterSetpoint,   true),
-    NUM("hot_water_ceiling",   nullptr, nullptr, "C",     0,   255,   1,   true, MaconField::HotWaterCeiling),
-    NUM("compressor_freq",     nullptr, nullptr, "Hz",    0,   255,   1,   true, MaconField::CompressorFreq),
-    NUM("fan_speed",           nullptr, nullptr, "RPM",   0,   2550,  10,  true, MaconField::FanLevel),
-    NUM("ac_voltage",          nullptr, nullptr, "V",     0,   2550,  10,  true, MaconField::AcVoltage),
-    NUM("ac_current",          nullptr, nullptr, "A",     0,   255,   1,   true, MaconField::AcCurrent),
-    NUM("dc_voltage",          nullptr, nullptr, "V",     0,   2550,  10,  true, MaconField::DcVoltage),
-    NUM("primary_eev",  "main_eev", "primary_eev_opening", "steps", 0, 255, 1, true, MaconField::PrimaryEev),
-    NUM("realtime_power",      nullptr, nullptr, "W",     0,   25500, 100, true, MaconField::RealtimePower),
+    TEMP("water_tank_temp",      "o1",  MaconField::WaterTankTemp),
+    TEMP("outlet_water_temp",    "o3",  MaconField::OutletWaterTemp),
+    TEMP("inlet_water_temp",     "o2",  MaconField::InletWaterTemp),
+    TEMP("discharge_temp",       "A1",  MaconField::DischargeTemp),
+    TEMP("suction_temp",         "A3",  MaconField::SuctionTemp),
+    TEMP("outdoor_coil_temp",    "A2",  MaconField::OutdoorCoilTemp),
+    TEMP("indoor_coil_temp",     "A6",  MaconField::IndoorCoilTemp),
+    TEMP("outdoor_ambient_temp", "o4",  MaconField::OutdoorAmbientTemp),
+    TEMP("ipm_temp",             "A8",  MaconField::IpmTemp),
+    TEMP("cooling_setpoint",     nullptr, MaconField::CoolingSetpoint),
+    TEMP("heating_setpoint",     nullptr, MaconField::HeatingSetpoint),
+    TEMP("hot_water_setpoint",   nullptr, MaconField::HotWaterSetpoint),
+    NUM("hot_water_ceiling",   nullptr, nullptr, "C",     0,    255,   1,   nullptr, MaconField::HotWaterCeiling),
+    NUM("compressor_freq",     nullptr, nullptr, "Hz",    0,    255,   1,   "A14", MaconField::CompressorFreq),
+    NUM("fan_speed",           nullptr, nullptr, "RPM",   0,    2550,  10,  "A10", MaconField::FanLevel),
+    NUM("ac_voltage",          nullptr, nullptr, "V",     0,    255,   1,   "A13", MaconField::AcVoltage),
+    NUM("ac_current",          nullptr, nullptr, "A",     0,    255,   1,   "A4",  MaconField::AcCurrent),
+    NUM("dc_voltage",          nullptr, nullptr, "V",     0,    2550,  10,  "A7",  MaconField::DcVoltage),
+    NUM("primary_eev",  "main_eev", "primary_eev_opening", nullptr, 0, 255, 1, "A5", MaconField::PrimaryEev),
+    NUM("aux_eev",      "evi_eev", nullptr,  nullptr,  0,    255,   1,   "o6",  MaconField::AuxEev),
+    NUM("realtime_power",      nullptr, nullptr, "W",     0,    25500, 100, "A9",  MaconField::RealtimePower),
+    NUM("high_pressure",       nullptr, nullptr, nullptr, -128, 127,   1,   "A11", MaconField::HighPressure),
+    NUM("low_pressure",        nullptr, nullptr, nullptr, 0,    255,   1,   "A12", MaconField::LowPressure),
     FLAG("unit_on",         MaconFlag::UnitOn),
     FLAG("fan_on",          MaconFlag::Fan),
     FLAG("pump_on",         MaconFlag::Pump),
@@ -48,9 +51,9 @@ const MaconFieldDesc MACON_FIELDS[] = {
     FLAG("defrost_on",      MaconFlag::Defrost),
     FLAG("compressor_icon", MaconFlag::CompressorIcon),
     { "working_mode", { nullptr, nullptr }, MaconFieldKind::WorkingMode, nullptr,
-      0, 0, 0, true, kNoField, kNoFlag },
+      0, 0, 0, true, nullptr, kNoField, kNoFlag },
     { "operating_direction", { nullptr, nullptr }, MaconFieldKind::OperatingDirection, nullptr,
-      0, 0, 0, true, kNoField, kNoFlag },
+      0, 0, 0, true, nullptr, kNoField, kNoFlag },
 };
 const size_t MACON_FIELDS_COUNT = sizeof(MACON_FIELDS) / sizeof(MACON_FIELDS[0]);
 
@@ -196,6 +199,9 @@ bool macon_field_get(const MaconState &s, const MaconFieldDesc &desc, int32_t *o
         case MaconField::HeatingSetpoint:    *out = s.heating_setpoint;   return s.heating_setpoint_valid;
         case MaconField::HotWaterSetpoint:   *out = s.hot_water_setpoint; return s.hot_water_setpoint_valid;
         case MaconField::HotWaterCeiling:    *out = s.hot_water_ceiling;  return s.hot_water_ceiling_valid;
+        case MaconField::AuxEev:             *out = s.aux_eev;            return s.aux_eev_valid;
+        case MaconField::HighPressure:       *out = s.high_pressure;      return s.high_pressure_valid;
+        case MaconField::LowPressure:        *out = s.low_pressure;       return s.low_pressure_valid;
     }
     return false;
 }
@@ -293,7 +299,7 @@ uint32_t macon_catalog_fingerprint() {
         const MaconFieldDesc &d = MACON_FIELDS[i];
         f.str(d.name); f.str(d.aliases[0]); f.str(d.aliases[1]); f.str(d.unit);
         f.byte(static_cast<uint8_t>(d.kind));
-        f.i32(d.min); f.i32(d.max); f.i32(d.step); f.byte(d.verified);
+        f.i32(d.min); f.i32(d.max); f.i32(d.step); f.byte(d.verified); f.str(d.oem_code);
     }
     for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {
         const MaconFaultBit &b = MACON_FAULT_BITS[i];

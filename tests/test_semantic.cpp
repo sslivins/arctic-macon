@@ -310,8 +310,44 @@ static void test_fingerprints() {
                 (unsigned long)l, (unsigned long)c);
 }
 
+static void test_oem_codes() {
+    // The OEM wired controller's display list, bench-verified 2026-11-03.
+    // o5 is unused on this unit; every other code maps to exactly one field.
+    struct Expect { const char *code; const char *field; uint16_t reg; };
+    const Expect expected[] = {
+        { "o1",  "water_tank_temp",      2008 }, { "o2",  "inlet_water_temp",     2133 },
+        { "o3",  "outlet_water_temp",    2132 }, { "o4",  "outdoor_ambient_temp", 2134 },
+        { "o6",  "aux_eev",              2048 }, { "A1",  "discharge_temp",       2138 },
+        { "A2",  "outdoor_coil_temp",    2136 }, { "A3",  "suction_temp",         2137 },
+        { "A4",  "ac_current",           2000 }, { "A5",  "primary_eev",          2140 },
+        { "A6",  "indoor_coil_temp",     2135 }, { "A7",  "dc_voltage",           2001 },
+        { "A8",  "ipm_temp",             2113 }, { "A9",  "realtime_power",       2114 },
+        { "A10", "fan_speed",            2003 }, { "A11", "high_pressure",        2013 },
+        { "A12", "low_pressure",         2014 }, { "A13", "ac_voltage",           2142 },
+        { "A14", "compressor_freq",      2141 },
+    };
+    for (const Expect &e : expected) {
+        const MaconFieldDesc *d = macon_field_find(e.field);
+        CHECK(d != nullptr);
+        if (d == nullptr) continue;
+        if (d->oem_code == nullptr || std::strcmp(d->oem_code, e.code) != 0) {
+            std::printf("  field %s: oem_code %s, expected %s\n", e.field,
+                        d->oem_code ? d->oem_code : "(null)", e.code);
+        }
+        CHECK(d->oem_code != nullptr && std::strcmp(d->oem_code, e.code) == 0);
+        CHECK(macon_field_address(d->field) == e.reg);
+    }
+    // No field carries a code outside the list.
+    size_t coded = 0;
+    for (size_t i = 0; i < MACON_FIELDS_COUNT; ++i) {
+        if (MACON_FIELDS[i].oem_code != nullptr) ++coded;
+    }
+    CHECK(coded == sizeof(expected) / sizeof(expected[0]));
+}
+
 int main() {
     test_field_lookup();
+    test_oem_codes();
     test_number_round_trip();
     test_strict_rejects();
     test_flags_and_enums();
