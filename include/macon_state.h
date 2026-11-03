@@ -143,8 +143,10 @@ struct MaconState {
     uint16_t ac_current;        bool ac_current_valid;      // reg2000 A4
     uint16_t ac_voltage;        bool ac_voltage_valid;      // reg2142 A13 (V x1)
     uint16_t dc_voltage;        bool dc_voltage_valid;      // reg2001 A7 (already x10 => volts)
-    uint16_t primary_eev;       bool primary_eev_valid;     // reg2140 A5 (raw, as the OEM shows it)
-    uint16_t aux_eev;           bool aux_eev_valid;         // reg2048 o6 auxiliary (EVI) EEV (raw)
+    // EEV openings, as the OEM shows them. Reported in "steps"; that unit (and
+    // whether a x10 scale applies) is unconfirmed - see docs/REGISTERS.md.
+    uint16_t primary_eev;       bool primary_eev_valid;     // reg2140 A5
+    uint16_t aux_eev;           bool aux_eev_valid;         // reg2048 o6 auxiliary (EVI) EEV
     uint16_t compressor_freq;   bool compressor_freq_valid; // reg2141 A14
     uint32_t realtime_power_w;  bool realtime_power_valid;  // reg2114 A9 (x100 => W)
 

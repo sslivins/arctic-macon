@@ -38,7 +38,7 @@ struct MaconFieldDesc {
     const char    *name;         // canonical API name
     const char    *aliases[2];   // accepted alternative names (nullptr = none)
     MaconFieldKind kind;
-    const char    *unit;         // "C", "Hz", "V", "A", "W", "RPM"; nullptr if n/a or raw
+    const char    *unit;         // "C", "Hz", "V", "A", "W", "RPM", "steps"; nullptr if n/a or raw
     int32_t        min;          // Number: accepted semantic range (inclusive)
     int32_t        max;
     int32_t        step;         // Number: value must be a multiple of step

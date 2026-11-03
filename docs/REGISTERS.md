@@ -100,7 +100,7 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2136 | A2  | Coil temp | signed °C |
 | 2137 | A3  | Suction temp | signed °C |
 | 2138 | A1  | Discharge temp | signed °C |
-| 2140 | A5  | Main EEV opening (`primary_eev`) | Raw byte, shown as-is by the OEM (bench-verified 2026-11-03: wrote 37, OEM A5 = 37). 48 in cooling, 12–20 regulating in heating. ×10 = steps is plausible (manual opening AP50 is 0–500) but unconfirmed, so the library reports the raw value with no unit. Before 2026-11 the library read A5 from 2104, a constant setting byte. |
+| 2140 | A5  | Main EEV opening (`primary_eev`) | Raw byte, shown as-is by the OEM (bench-verified 2026-11-03: wrote 37, OEM A5 = 37). 48 in cooling, 12–20 regulating in heating. ×10 = steps is plausible (manual opening AP50 is 0–500) but unconfirmed. The library labels the value as-shown in `steps`; see [EEV opening unit](#eev-opening-unit). Before 2026-11 the library read A5 from 2104, a constant setting byte. |
 | 2141 | A14 | Compressor frequency | Hz |
 | 2142 | A13 | AC input voltage (`ac_voltage`) | V ×1 (live 217–245). The OEM shows V ÷ 10, truncated (bench-verified 2026-11-03: 211 → A13 21, 187 → A13 18). Before 2026-11 the library read A13 from 2101 ×10, a constant setting byte that always gave 230 V. |
 
@@ -116,12 +116,27 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2012 | Cn13 | Hot-water ceiling | see setpoints section |
 | 2013 | A11 | High pressure (`high_pressure`) | Signed byte, shown as-is (bench-verified 2026-11-03: wrote 9, OEM A11 = 9; the live value 250 shows as −6). Unit and scale unknown. Constant −6 on both units, and every OEM log sent to Arctic shows A11 = −6, so no transducer is fitted. The library decodes it for units that have one; a UI should hide it by default. |
 | 2014 | A12 | Low pressure (`low_pressure`) | Raw byte, shown as-is (bench-verified 2026-11-03: wrote 7, OEM A12 = 7). Unit and scale unknown. Constant 3 on both units and in every OEM log sent to Arctic, so no transducer is fitted. Decoded for units that have one; hide by default. |
-| 2048 | o6  | Auxiliary (EVI) EEV opening (`aux_eev`) | Raw byte, shown as-is (bench-verified 2026-11-03: wrote 29, OEM o6 = 29; Arctic docs: "Auxiliary elec. expansion valve degree"). 0 almost always; opens only in some heating/idle conditions. |
+| 2048 | o6  | Auxiliary (EVI) EEV opening (`aux_eev`) | Raw byte, shown as-is (bench-verified 2026-11-03: wrote 29, OEM o6 = 29; Arctic docs: "Auxiliary elec. expansion valve degree"). 0 almost always; opens only in some heating/idle conditions. Reported in `steps`; see [EEV opening unit](#eev-opening-unit). |
 | 2049 | — | Operating direction | `0x00` heating, `0x04` cooling (reversing valve) |
 
 The installer **Cn** advanced-parameter block (`reg = 2000 + Cn`, roughly
 `reg2013 … reg2057`) is documented and guarded separately in
 `macon_advanced_params.{h,cpp}` (validate-only, reject-not-clamp; no write path).
+
+### EEV opening unit
+
+`primary_eev` (A5) and `aux_eev` (o6) are reported with the unit `steps`, but
+**that unit is not confirmed**. Arctic's docs call them the "main / auxiliary
+elec. expansion valve degree"; "degree" is a translation of 开度 ("opening
+degree"), meaning how far the valve is open, not an angle. Stepper-driven
+EEVs are normally counted in motor steps (pulses) with ~480–500 for full
+travel, which fits the 0–500 range of the manual-opening parameters AP50/AP51
+(`reg2062`/`reg2064`). The wire byte tops out at 255, though, and the units read
+12–20 heating and 48 cooling, so the displayed value may be steps ÷ 10. The
+library reports the value exactly as the OEM display shows it.
+
+To settle it: in manual EEV mode (AP48), set AP50 to a known opening (e.g. 300) and
+see whether A5 shows 300, 30 or something else.
 
 ### Advanced-parameter quirks
 
