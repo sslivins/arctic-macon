@@ -66,6 +66,14 @@ static constexpr const char *CAT_MANUAL   = "Manual/Test";
 // self-clearing momentary command register the UI renders as a button).
 // validate_advanced_write() refuses REG_UNKNOWN, READ_ONLY and write-locked.
 //
+// `default` is the factory value, confirmed on two never-modified units
+// (2026-11, read via the OEM wired controller). Where it differs from the
+// vendor doc's "Default" column, the doc is wrong: K1-K7 (doc 0.5/2/1/0.5/1/1/2,
+// units 0), AP28 (doc 3, units 0), AP29 (doc 45, units 60), AP34 (doc 8,
+// units 12), AP35 (doc 13, units 5), AP39 (doc 40, units 50), AP41 (doc 0,
+// units 10), AP42 (doc 5, units 10), AP46 (doc -10, units -1). AP40 keeps the
+// doc's 15; our units read -1 only because Arctic changed it on site.
+//
 // Fields: { ap, reg, name, detail, category, min, max, default, unit, is_signed,
 //           needs_sim_confirm, enum_vals, enum_count, read_only, is_trigger,
 //           enum_opts, enum_opt_count, name_msg_id, detail_msg_id,
@@ -76,25 +84,25 @@ static const AdvancedParam s_advanced[] = {
       CAT_AUTO,     20,  55,  50, "°C",     false, false, nullptr, 0, false, false, nullptr, 0, "ap.max_hw_setpoint.name", "ap.max_hw_setpoint.detail" },  // verified: user changed 50<->55, reg2012 tracked
     { 14, 2111, "Frequency Ratio K1",
       "Adjusts compressor speed when heating or making hot water with outdoor air at or below {T:-9} and inlet water at or below {T:43}.",
-      CAT_FREQ,      0,  20,   1, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k1.name", "ap.freq_ratio_k1.detail" },  // verified: write wire 0x12
+      CAT_FREQ,      0,  20,   0, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k1.name", "ap.freq_ratio_k1.detail" },  // verified: write wire 0x12
     { 15, 2112, "Frequency Ratio K2",
       "Adjusts compressor speed when heating or making hot water with outdoor air between {T:-9} and {T:18} and inlet water at or below {T:43}.",
-      CAT_FREQ,      0,  20,   2, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k2.name", "ap.freq_ratio_k2.detail" },  // verified: write wire 0x13
+      CAT_FREQ,      0,  20,   0, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k2.name", "ap.freq_ratio_k2.detail" },  // verified: write wire 0x13
     { 16, 2015, "Frequency Ratio K3",
       "Adjusts compressor speed when heating or making hot water with outdoor air above {T:18} and inlet water at or below {T:43}.",
-      CAT_FREQ,      0,  20,   1, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k3.name", "ap.freq_ratio_k3.detail" },  // verified: write wire 0x41
+      CAT_FREQ,      0,  20,   0, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k3.name", "ap.freq_ratio_k3.detail" },  // verified: write wire 0x41
     { 17, 2016, "Frequency Ratio K4",
       "Adjusts compressor speed when heating or making hot water with outdoor air at or below {T:-9} and inlet water above {T:43}.",
-      CAT_FREQ,      0,  20,   1, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k4.name", "ap.freq_ratio_k4.detail" },  // verified: write wire 0x42
+      CAT_FREQ,      0,  20,   0, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k4.name", "ap.freq_ratio_k4.detail" },  // verified: write wire 0x42
     { 18, 2017, "Frequency Ratio K5",
       "Adjusts compressor speed when heating or making hot water with outdoor air between {T:-9} and {T:18} and inlet water above {T:43}.",
-      CAT_FREQ,      0,  20,   1, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k5.name", "ap.freq_ratio_k5.detail" },  // verified: write wire 0x43
+      CAT_FREQ,      0,  20,   0, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k5.name", "ap.freq_ratio_k5.detail" },  // verified: write wire 0x43
     { 19, 2018, "Frequency Ratio K6",
       "Adjusts compressor speed when heating or making hot water with outdoor air above {T:18} and inlet water above {T:43}.",
-      CAT_FREQ,      0,  20,   1, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k6.name", "ap.freq_ratio_k6.detail" },  // verified: write wire 0x44
+      CAT_FREQ,      0,  20,   0, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k6.name", "ap.freq_ratio_k6.detail" },  // verified: write wire 0x44
     { 20, 2019, "Frequency Ratio K7",
       "Adjusts compressor speed in cooling mode.",
-      CAT_FREQ,      0,  20,   2, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k7.name", "ap.freq_ratio_k7.detail" },  // verified: wire 0x45 + read-back
+      CAT_FREQ,      0,  20,   0, nullptr,  false, false, kRatioReadings, 8, false, false, kFreqRatioOptions, kFreqRatioOptionCount, "ap.freq_ratio_k7.name", "ap.freq_ratio_k7.detail" },  // verified: wire 0x45 + read-back
     { 24, 2023, "Heating Comp-Stop Ambient",
       "Heating mode: the compressor stops once the outdoor ambient temperature rises to this value or above.",
       CAT_PROTECT,  10,  45,  28, "°C",     false, false, nullptr, 0, false, false, nullptr, 0, "ap.heating_comp_stop_ambient.name", "ap.heating_comp_stop_ambient.detail" },  // write-verified reg2023; OEM max is 45 (doc 80 wrong)
@@ -109,10 +117,10 @@ static const AdvancedParam s_advanced[] = {
       CAT_FREQ,      1,  20,   5, "Hz",     false, false, nullptr, 0, false, false, nullptr, 0, "ap.fast_heat_freq_increase.name", "ap.fast_heat_freq_increase.detail" },  // write-verified reg2026
     { 28, 2027, "Auto-Mode Switch Wait Time",
       "Automatic mode: time to wait before switching between heating and cooling.",
-      CAT_AUTO,      0,  99,   3, "×10min", false, false, nullptr, 0, false, false, nullptr, 0, "ap.auto_mode_switch_wait.name", "ap.auto_mode_switch_wait.detail", 10, "min" },  // write-verified reg2027
+      CAT_AUTO,      0,  99,   0, "×10min", false, false, nullptr, 0, false, false, nullptr, 0, "ap.auto_mode_switch_wait.name", "ap.auto_mode_switch_wait.detail", 10, "min" },  // write-verified reg2027
     { 29, 2030, "Compressor Run Time Before Defrost",
       "Cumulative compressor running time that must elapse before a defrost cycle is allowed.",
-      CAT_DEFROST,   0,  90,  45, "min",    false, false, nullptr, 0, false, false, nullptr, 0, "ap.comp_runtime_before_defrost.name", "ap.comp_runtime_before_defrost.detail" },  // write-verified reg2030; doc Item29 (0~90min, def 45)
+      CAT_DEFROST,   0,  90,  60, "min",    false, false, nullptr, 0, false, false, nullptr, 0, "ap.comp_runtime_before_defrost.name", "ap.comp_runtime_before_defrost.detail" },  // write-verified reg2030; doc Item29 (0~90min, def 45)
     { 30, 2031, "Coil Temp to Enter Defrost",
       "Outdoor coil temperature at or below which a defrost cycle is entered.",
       CAT_DEFROST, -20,   5,  -7, "°C",     true,  false, nullptr, 0, false, false, nullptr, 0, "ap.coil_temp_enter_defrost.name", "ap.coil_temp_enter_defrost.detail" },  // write-verified reg2031
@@ -135,11 +143,11 @@ static const AdvancedParam s_advanced[] = {
       "The unit stops when the outdoor ambient falls below this temperature. The sensor floor is -30C; setting a value below -30 disables this protection, so keep it within -30..0C.",
       CAT_PROTECT, -30,   0, -30, "°C",     true,  false, nullptr, 0, false, false, nullptr, 0, "ap.low_ambient_protection.name", "ap.low_ambient_protection.detail" },  // write-verified reg2038
     { 39, 2039, "Freq Reduce Delay After Setpoint",
-      "Time after the setpoint is reached before the working frequency is reduced. Leaving this at the default (40) disables the reduction; any other value enables it.",
-      CAT_PROTECT,  10, 120,  40, "min",    false, false, nullptr, 0, false, false, nullptr, 0, "ap.freq_reduce_delay.name", "ap.freq_reduce_delay.detail" },  // write-verified reg2039; doc Item39 (10~120min, def 40; doc: value 40 = no reduction, any other value reduces)
+      "Time after the setpoint is reached before the working frequency is reduced. A value of 40 disables the reduction; any other value (factory setting 50) enables it.",
+      CAT_PROTECT,  10, 120,  50, "min",    false, false, nullptr, 0, false, false, nullptr, 0, "ap.freq_reduce_delay.name", "ap.freq_reduce_delay.detail" },  // write-verified reg2039; doc Item39 (10~120min, def 40; doc: value 40 = no reduction, any other value reduces)
     { 40, 2040, "Cooling Comp-Stop Ambient",
       "Cooling mode: the compressor stops when the outdoor ambient drops to this temperature. Use a negative value for glycol systems and a positive value for water systems; the magnitude is the ambient threshold.",
-      CAT_PROTECT, -45,  45,  -1, "°C",     true,  false, nullptr, 0, false, false, nullptr, 0, "ap.cooling_comp_stop_ambient.name", "ap.cooling_comp_stop_ambient.detail" },  // write-verified reg2040
+      CAT_PROTECT, -45,  45,  15, "°C",     true,  false, nullptr, 0, false, false, nullptr, 0, "ap.cooling_comp_stop_ambient.name", "ap.cooling_comp_stop_ambient.detail" },  // write-verified reg2040
     { 41, 2041, "Main EEV Superheat Control Method",
       "Superheat control method for the main expansion valve (0 = by superheat degree, 1 = by a lab-tuned chart). Read-only: the on-unit scaling is unconfirmed.",
       CAT_EEV, 0, 20, 10, nullptr, false, false, nullptr, 0, true, false, nullptr, 0, "ap.main_eev_superheat_method.name", "ap.main_eev_superheat_method.detail" },  // write-verified reg2041; doc Item41 (0~1: 0=per overheat degree, 1=per lab-testing chart). READ-ONLY: reg observed=10-13, outside doc 0~1 -> identity/scale uncertain
