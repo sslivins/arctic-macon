@@ -85,8 +85,8 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2094 | — | Heating setpoint | signed °C (wire 0x0001, writable; used by modes 1 and 2) |
 | 2095 | — | Hot-water setpoint | signed °C (wire 0x0002) |
 | 2096 | — | Selected working mode | 0 cooling, 1 heating, 5 hot water, 6 hot water / cooling (wire 0x0003, writable). 2/3/4 are heating variants, decoded but not writable: 2 = flashing heating icon with the 2094 setpoint, decoded as "Freeze protection" (`freeze_protection`) because the field units switch to it while idle whenever inlet/outlet water reaches 2.0 °C, run the pump ~30 s, then return to the selected mode; 3 =  solid icon with holding reg2010, 4 = flashing icon with holding reg2011. 7+ are out of range. |
-| 2101 | A13 | AC input voltage | ×10 = V |
-| 2104 | A5  | Main EEV | steps |
+| 2101 | A13 | AC input voltage | ×10 = V. ⚠ disputed: never changes; see [Unverified registers](#unverified-registers) |
+| 2104 | A5  | Main EEV | steps. ⚠ disputed: always 17; see [Unverified registers](#unverified-registers) |
 | 2113 | A8  | IPM temp | signed °C |
 | 2114 | A9  | Real-time power | ×100 = W |
 | 2125 | — | Fault: sensor/EE/comm E-codes | bitfield |
@@ -119,6 +119,73 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 The installer **Cn** advanced-parameter block (`reg = 2000 + Cn`, roughly
 `reg2013 … reg2057`) is documented and guarded separately in
 `macon_advanced_params.{h,cpp}` (validate-only, reject-not-clamp; no write path).
+
+## Unverified registers
+
+This is the to-do list for the map: every byte in either wire window that isn't
+verified against something independent, such as the OEM controller's A-code
+screen, a tachometer, a meter or a bench write. When a byte is confirmed, move
+it into the tables above with its evidence and delete its row here.
+
+**Wire offset** is the real `addr` byte offset on the bus. The `reg` numbers are
+library labels (see [Register numbering](#register-numbering)): telemetry
+offset = reg − 2093, holding offset = 50 + (reg − 2000).
+
+**Evidence base:** the `arctic_logger` captures from both Sun Peaks units
+(HP1 ≈ 231k rows, HP2 ≈ 214k rows; July to 24 Sep 2026, mostly cooling).
+"Constant" means constant over that period only. Winter heating may move some
+of these bytes.
+
+Status: ❌ current mapping looks wrong · ❓ live, with a hypothesis ·
+🔍 live, meaning unknown · 🔒 constant, probably a setting or unused.
+
+### Disputed and candidate mappings
+
+| reg | wire offset | status | observed | hypothesis | how to verify |
+|-----|-------------|--------|----------|------------|---------------|
+| 2104 | 11 | ❌ | 17 in every row on both units; sits inside the constant block 2097–2112 | Not the EEV; a setting | Simulator: set 2104 = 21 and see whether the OEM A5 changes |
+| 2140 | 47 | ❓ | 48 for nearly the whole cooling run; 12–20 while heating, moving with load; brief 23–28 at stop, then parks around 15; rare 252–255 spikes | **Main EEV, ×10 steps** (480 = fully open in cooling). The real A5 | Simulator: set 2140 = 37 and expect OEM A5 = 370 |
+| 2101 | 8 | ❌ | 23 in every row, so the UI always shows 230 V | Not live voltage; a setting | Simulator: set 2101 = 19 and see whether the OEM A13 changes |
+| 2142 | 49 | ❓ | 217–245, changes continuously | **AC input voltage, V ×1**. The real A13 | Simulator: set 2142 = 211 and expect OEM A13 = 211; check against a meter at the unit |
+| 2002 | 52 | ❓ | 0 when stopped; 5–18 while running, about ⅔ of reg2000 (AC current) | Compressor phase current or DC current, A | Simulator: set a distinctive value and find which OEM A-code shows it |
+| 2003 | 53 | ❓ (scale is verified) | Running speed is always 690–720 RPM; never higher | Is 700 RPM the maximum or a middle speed? The controller's `MACON_FAN_SPEED_MAX_RPM` = 1000 is a placeholder | Watch for faster speeds in deep cold; check the OEM manual or a fan speed parameter |
+
+### Live, meaning unknown
+
+| reg | wire offset | status | observed | hypothesis | how to verify |
+|-----|-------------|--------|----------|------------|---------------|
+| 2107 | 14 | ❓ | One-hot 16 / 32 / 64 / 128 (rarely 0). Steps at fixed local times, about 06:18, 09:18, 17:18 and 23:18, on both units | Time-of-day schedule or tariff period | Compare with the OEM timer/schedule settings; simulator value test |
+| 2048 | 98 | 🔍 | 0 in more than 99.8 % of rows; 4–10 at times while heating or idle; occasionally 244–255 | A signed 8-bit value (−12 … −1)? Not an installer parameter: the AP table jumps from AP47 = 2047 to AP48 = 2060 | Watch it in winter; simulator value test |
+
+### Constant bytes
+
+The values are identical on HP1 and HP2. Many look like configuration in
+°C, minutes or steps. Bytes marked "signed?" read as negative if the byte is
+treated as signed.
+
+| reg | wire offset | value | reg | wire offset | value |
+|-----|-------------|-------|-----|-------------|-------|
+| 2097 | 4 | 1 (HP1 showed 5 twice) | 2004–2006 | 54–56 | 0 |
+| 2098 | 5 | 0 | 2009 | 59 | 35 (2010 and 2011 next to it are the mode 3/4 setpoints, both 45) |
+| 2099 | 6 | 15 | 2013 | 63 | 250 (signed? −6) |
+| 2100 | 7 | 30 | 2014 | 64 | 3 |
+| 2102 | 9 | 6 | 2020 | 70 | 4 |
+| 2103 | 10 | 9 | 2021 | 71 | 45 |
+| 2105 | 12 | 35 | 2022 | 72 | 0 |
+| 2106 | 13 | 0 | 2028 | 78 | 0 |
+| 2108 | 15 | 35 | 2036 | 86 | 95 |
+| 2109 | 16 | 30 | 2037 | 87 | 15 |
+| 2110 | 17 | 40 | 2050 | 100 | 0 |
+| 2111–2112 | 18–19 | 0 | 2051 | 101 | 20 |
+| 2115 | 22 | 1 | 2052 | 102 | 241 (signed? −15) |
+| 2116–2123 | 23–30 | 0 | 2053–2056 | 103–106 | 0 |
+| 2124 | 31 | 96 | 2057 | 107 | 8 |
+| 2131 | 38 | 0 | | | |
+| 2139 | 46 | 0 | | | |
+
+Holding bytes that `macon_advanced_params.cpp` maps to an installer parameter
+(AP13–AP47) are left out of this list. Those parameters are live settings,
+so their values are expected to stay fixed.
 
 ## Named fields (semantic API)
 
