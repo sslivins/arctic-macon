@@ -85,8 +85,8 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2094 | — | Heating setpoint | signed °C (wire 0x0001, writable; used by modes 1 and 2) |
 | 2095 | — | Hot-water setpoint | signed °C (wire 0x0002) |
 | 2096 | — | Selected working mode | 0 cooling, 1 heating, 5 hot water, 6 hot water / cooling (wire 0x0003, writable). 2/3/4 are heating variants, decoded but not writable: 2 = flashing heating icon with the 2094 setpoint, decoded as "Freeze protection" (`freeze_protection`) because the field units switch to it while idle whenever inlet/outlet water reaches 2.0 °C, run the pump ~30 s, then return to the selected mode; 3 =  solid icon with holding reg2010, 4 = flashing icon with holding reg2011. 7+ are out of range. |
-| 2101 | A13 | AC input voltage | ×10 = V. ⚠ disputed: never changes; see [Unverified registers](#unverified-registers) |
-| 2104 | A5  | Main EEV | steps. ⚠ disputed: always 17; see [Unverified registers](#unverified-registers) |
+| 2101 | ~~A13~~ | ~~AC input voltage~~ | ❌ **Wrong, but the library still decodes it this way (fix pending).** OEM A13 comes from 2142; see [Unverified registers](#unverified-registers) |
+| 2104 | ~~A5~~  | ~~Main EEV~~ | ❌ **Wrong, but the library still decodes it this way (fix pending).** OEM A5 comes from 2140; see [Unverified registers](#unverified-registers) |
 | 2113 | A8  | IPM temp | signed °C |
 | 2114 | A9  | Real-time power | ×100 = W |
 | 2125 | — | Fault: sensor/EE/comm E-codes | bitfield |
@@ -102,7 +102,9 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2136 | A2  | Coil temp | signed °C |
 | 2137 | A3  | Suction temp | signed °C |
 | 2138 | A1  | Discharge temp | signed °C |
+| 2140 | A5  | Main EEV opening | Raw byte, shown as-is by the OEM (bench-verified 2026-11-03: wrote 37, OEM A5 = 37). 48 in cooling, 12–20 regulating in heating. ×10 = steps is plausible (manual opening AP50 is 0–500) but unconfirmed. *Not yet decoded by the library.* |
 | 2141 | A14 | Compressor frequency | Hz |
+| 2142 | A13 | AC input voltage | V ×1 (live 217–245). The OEM shows V ÷ 10, truncated (bench-verified 2026-11-03: 211 → A13 21, 187 → A13 18). *Not yet decoded by the library.* |
 
 ## Holding window (`reg2000 … reg2057`)
 
@@ -114,6 +116,7 @@ as the `macon-nack-probe` follow-up). `MaconLink` detects a `0x86` best-effort.
 | 2007 | — | Run-state / fault code | `0x00` off, `0x20` hot-water RUN, low/high = P-faults |
 | 2008 | o1  | Water tank temp | signed °C (real immersed DHW probe) |
 | 2012 | Cn13 | Hot-water ceiling | see setpoints section |
+| 2048 | o6  | Auxiliary (EVI) EEV opening | Raw byte, shown as-is (bench-verified 2026-11-03: wrote 29, OEM o6 = 29; Arctic docs: "Auxiliary elec. expansion valve degree"). 0 almost always; opens only in some heating/idle conditions. *Not yet decoded by the library.* |
 | 2049 | — | Operating direction | `0x00` heating, `0x04` cooling (reversing valve) |
 
 The installer **Cn** advanced-parameter block (`reg = 2000 + Cn`, roughly
@@ -143,11 +146,9 @@ Status: ❌ current mapping looks wrong · ❓ live, with a hypothesis ·
 
 | reg | wire offset | status | observed | hypothesis | how to verify |
 |-----|-------------|--------|----------|------------|---------------|
-| 2104 | 11 | ❌ | 17 in every row on both units; sits inside the constant block 2097–2112 | Not the EEV; a setting | Simulator: set 2104 = 21 and see whether the OEM A5 changes |
-| 2140 | 47 | ❓ | 48 for nearly the whole cooling run; 12–20 while heating, moving with load; brief 23–28 at stop, then parks around 15; rare 252–255 spikes | **Main EEV, ×10 steps** (480 = fully open in cooling). The real A5 | Simulator: set 2140 = 37 and expect OEM A5 = 370 |
-| 2101 | 8 | ❌ | 23 in every row, so the UI always shows 230 V | Not live voltage; a setting | Simulator: set 2101 = 19 and see whether the OEM A13 changes |
-| 2142 | 49 | ❓ | 217–245, changes continuously | **AC input voltage, V ×1**. The real A13 | Simulator: set 2142 = 211 and expect OEM A13 = 211; check against a meter at the unit |
-| 2002 | 52 | ❓ | 0 when stopped; 5–18 while running, about ⅔ of reg2000 (AC current) | Compressor phase current or DC current, A | Simulator: set a distinctive value and find which OEM A-code shows it |
+| 2104 | 11 | ❌ confirmed not A5 | 17 in every row on both units; sits inside the constant block 2097–2112 | A setting (meaning unknown) | **Bench 2026-11-03:** 2104 = 21 and then 33; neither OEM A5 nor A13 followed it. Library fix pending |
+| 2101 | 8 | ❌ confirmed not A13 | 23 in every row, so the UI always shows 230 V | A setting (meaning unknown) | **Bench 2026-11-03:** 2101 = 19; OEM A13 didn't show 190 or 19. Library fix pending |
+| 2002 | 52 | ❓ | 0 when stopped; 5–18 while running, about ⅔ of reg2000 (AC current) | Compressor phase current or DC current, A | **Bench 2026-11-03:** 2002 = 13 didn't appear on any A- or o-code the OEM shows, so it's internal-only. Check against a clamp meter on the compressor leads |
 | 2003 | 53 | ❓ (scale is verified) | Running speed is always 690–720 RPM; never higher | Is 700 RPM the maximum or a middle speed? The controller's `MACON_FAN_SPEED_MAX_RPM` = 1000 is a placeholder | Watch for faster speeds in deep cold; check the OEM manual or a fan speed parameter |
 
 ### Live, meaning unknown
@@ -155,7 +156,6 @@ Status: ❌ current mapping looks wrong · ❓ live, with a hypothesis ·
 | reg | wire offset | status | observed | hypothesis | how to verify |
 |-----|-------------|--------|----------|------------|---------------|
 | 2107 | 14 | ❓ | One-hot 16 / 32 / 64 / 128 (rarely 0). Steps at fixed local times, about 06:18, 09:18, 17:18 and 23:18, on both units | Time-of-day schedule or tariff period | Compare with the OEM timer/schedule settings; simulator value test |
-| 2048 | 98 | 🔍 | 0 in more than 99.8 % of rows; 4–10 at times while heating or idle; occasionally 244–255 | A signed 8-bit value (−12 … −1)? Not an installer parameter: the AP table jumps from AP47 = 2047 to AP48 = 2060 | Watch it in winter; simulator value test |
 
 ### Constant bytes
 
