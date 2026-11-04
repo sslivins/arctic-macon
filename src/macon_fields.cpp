@@ -39,9 +39,10 @@ const MaconFieldDesc MACON_FIELDS[] = {
     NUM("ac_voltage",          nullptr, nullptr, "V",     0,    255,   1,   "A13", MaconField::AcVoltage),
     NUM("ac_current",          nullptr, nullptr, "A",     0,    255,   1,   "A4",  MaconField::AcCurrent),
     NUM("dc_voltage",          nullptr, nullptr, "V",     0,    2550,  10,  "A7",  MaconField::DcVoltage),
-    // EEV openings: "steps" is the likely unit but unconfirmed (see REGISTERS.md).
-    NUM("primary_eev",  "main_eev", "primary_eev_opening", "steps", 0, 255, 1, "A5", MaconField::PrimaryEev),
-    NUM("aux_eev",      "evi_eev", nullptr,  "steps",  0,    255,   1,   "o6",  MaconField::AuxEev),
+    // EEV openings in motor steps: wire byte x10, full travel MACON_EEV_MAX_STEPS.
+    // Both the x10 scale and the 500-step travel are assumptions (REGISTERS.md).
+    NUM("primary_eev",  "main_eev", "primary_eev_opening", "steps", 0, MACON_EEV_MAX_STEPS, 10, "A5", MaconField::PrimaryEev),
+    NUM("aux_eev",      "evi_eev", nullptr,  "steps",  0, MACON_EEV_MAX_STEPS, 10, "o6",  MaconField::AuxEev),
     NUM("realtime_power",      nullptr, nullptr, "W",     0,    25500, 100, "A9",  MaconField::RealtimePower),
     NUM("high_pressure",       nullptr, nullptr, nullptr, -128, 127,   1,   "A11", MaconField::HighPressure),
     NUM("low_pressure",        nullptr, nullptr, nullptr, 0,    255,   1,   "A12", MaconField::LowPressure),

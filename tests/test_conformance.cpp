@@ -92,7 +92,7 @@ static void test_real_capture_decode() {
     CHECK(s.hot_water_setpoint_valid && s.hot_water_setpoint == 50); // 2095 = 0x32
     CHECK(s.working_mode_valid && s.working_mode == MaconWorkingMode::HotWater); // 2096 = 5
     CHECK(s.ac_voltage_valid && s.ac_voltage == 230);              // 2142 = 230 (x1)
-    CHECK(s.primary_eev_valid && s.primary_eev == 19);             // 2140
+    CHECK(s.primary_eev_valid && s.primary_eev == 190);            // 2140 = 19 (x10 => steps)
     CHECK(s.ipm_valid && s.ipm_c == 12);                           // 2113
     CHECK(s.realtime_power_valid && s.realtime_power_w == 0);      // 2114
     CHECK(s.outlet_valid && s.outlet_c == 10);                     // 2132

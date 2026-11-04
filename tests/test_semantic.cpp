@@ -96,6 +96,10 @@ static void test_strict_rejects() {
     CHECK(macon_field_set(img, *temp, 128) == MaconSetResult::OutOfRange);
     CHECK(macon_field_set(img, *temp, -129) == MaconSetResult::OutOfRange);
     CHECK(macon_field_set(img, *fan, 2) == MaconSetResult::OutOfRange);
+    const MaconFieldDesc *eev = macon_field_find("primary_eev");
+    CHECK(eev->max == MACON_EEV_MAX_STEPS && eev->step == 10);
+    CHECK(macon_field_set(img, *eev, 185) == MaconSetResult::OutOfRange);   // not a multiple of 10
+    CHECK(macon_field_set(img, *eev, MACON_EEV_MAX_STEPS + 10) == MaconSetResult::OutOfRange);
     img.raw(&base, after, MaconImage::window_count());
     CHECK(std::memcmp(before, after, sizeof(before)) == 0);   // untouched
     // Legacy (non-strict) path still clamps and reports it.

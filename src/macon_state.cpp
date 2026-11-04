@@ -164,8 +164,11 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     out->ac_voltage      = val(REG_AC_VOLTAGE, &out->ac_voltage_valid);  // reg2142 A13 (V x1)
     out->dc_voltage      = static_cast<uint16_t>(
         val(REG_DC_BUS_VOLTAGE, &out->dc_voltage_valid) * 10);           // reg2001 A7 (x10 => volts)
-    out->primary_eev     = val(REG_MAIN_EEV, &out->primary_eev_valid);   // reg2140 A5
-    out->aux_eev         = val(REG_AUX_EEV, &out->aux_eev_valid);        // reg2048 o6
+    // EEV openings: the wire byte is assumed to be steps / 10 (REGISTERS.md).
+    out->primary_eev     = static_cast<uint16_t>(
+        val(REG_MAIN_EEV, &out->primary_eev_valid) * 10);                // reg2140 A5 (x10 => steps)
+    out->aux_eev         = static_cast<uint16_t>(
+        val(REG_AUX_EEV, &out->aux_eev_valid) * 10);                     // reg2048 o6 (x10 => steps)
     out->compressor_freq = val(REG_COMPRESSOR_FREQ, &out->compressor_freq_valid); // reg2141 A14
     out->realtime_power_w = static_cast<uint32_t>(
         val(REG_REALTIME_POWER, &out->realtime_power_valid) * 100);      // reg2114 A9 (x100 => W)
