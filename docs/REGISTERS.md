@@ -137,7 +137,16 @@ motor steps (pulses) with ~480–500 for full travel, which fits the 0–500 ran
 of the manual-opening parameters AP50/AP51 (`reg2062`/`reg2064`). The wire byte
 tops out at 255, though, and the units read 12–20 heating and 48 cooling, so
 the OEM display (which shows the byte as-is) is most likely steps ÷ 10.
-Consumers show an opening as a percentage of `MACON_EEV_MAX_STEPS`.
+Consumers show steps first, with a percentage of `MACON_EEV_MAX_STEPS` as a
+secondary figure.
+
+The byte is **signed**. After every compressor stop the unit re-zeros both
+valves: it opens them to ~48, drives them past fully closed (the count runs
+down to about −30, i.e. 226 on the wire), reopens to ~33–39 and settles at
+~15 for standby, all within about a minute (seen on both Sun Peaks units,
+2026-11-04). The stepper has no position sensor, so overdriving against the
+closed stop is how the controller re-syncs its step count. The library
+reports any negative reading as 0 (closed).
 
 To settle it: in manual EEV mode (AP48), set AP50 to a known opening (e.g. 300) and
 see whether A5 shows 300, 30 or something else. If A5 shows 30, the assumption

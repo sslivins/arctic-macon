@@ -150,7 +150,8 @@ struct MaconState {
     uint16_t ac_voltage;        bool ac_voltage_valid;      // reg2142 A13 (V x1)
     uint16_t dc_voltage;        bool dc_voltage_valid;      // reg2001 A7 (already x10 => volts)
     // EEV openings in motor steps (0..MACON_EEV_MAX_STEPS). ASSUMPTION: the wire
-    // byte (what the OEM display shows) is steps / 10 - see docs/REGISTERS.md.
+    // byte (what the OEM display shows) is signed steps / 10 - see docs/REGISTERS.md.
+    // Negative readings (re-zero overdrive after a stop) are reported as 0.
     uint16_t primary_eev;       bool primary_eev_valid;     // reg2140 A5 (raw x10 => steps)
     uint16_t aux_eev;           bool aux_eev_valid;         // reg2048 o6 auxiliary (EVI) EEV (raw x10 => steps)
     uint16_t compressor_freq;   bool compressor_freq_valid; // reg2141 A14
