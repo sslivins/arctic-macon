@@ -136,6 +136,15 @@ int main() {
     CHECK(cs.mode_valid);
     CHECK(!cs.running);                          // run-state 0 -> not running
 
+    // --- decode_state: EEV re-zero overdrive reads negative -> closed ------
+    std::memset(regs, 0, sizeof(regs));
+    set_reg(regs, REG_MAIN_EEV, 226);           // -30
+    set_reg(regs, REG_AUX_EEV, 255);            // -1
+    MaconState es;
+    decode_state(BASE, regs, COUNT, &es);
+    CHECK(es.primary_eev_valid && es.primary_eev == 0);
+    CHECK(es.aux_eev_valid && es.aux_eev == 0);
+
     // --- decode_state: register outside the window -> not valid ------------
     // A short window that does not reach reg2049.
     uint16_t small[10];
