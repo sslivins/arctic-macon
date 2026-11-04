@@ -44,13 +44,13 @@ enum class MaconField : uint8_t {
     AcVoltage,          // volts   (wire = x1)
     AcCurrent,          // amps    (wire = x1)
     DcVoltage,          // volts   (wire = /10)
-    PrimaryEev,         // opening as the OEM shows it (A5), "steps" (unconfirmed)
+    PrimaryEev,         // opening in steps (A5; wire = /10, assumed)
     RealtimePower,      // watts   (wire = /100)
     CoolingSetpoint,    // whole °C
     HeatingSetpoint,    // whole °C (reg2094, modes 1 and 2)
     HotWaterSetpoint,   // whole °C
     HotWaterCeiling,    // whole °C (AP13 ceiling)
-    AuxEev,             // opening as the OEM shows it (o6), "steps" (unconfirmed)
+    AuxEev,             // opening in steps (o6; wire = /10, assumed)
     HighPressure,       // raw signed byte (A11; unit unknown)
     LowPressure,        // raw byte (A12; unit unknown)
 };

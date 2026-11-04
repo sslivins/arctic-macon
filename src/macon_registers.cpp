@@ -34,7 +34,7 @@ static const RegEntry s_registers[] = {
     { 2012, { "Hot-Water Ceiling",      "°C",    1.0f,   false } },  // AP13 max hot-water temp (ceiling)
     { 2013, { "High Pressure",          nullptr, 1.0f,   true  } },  // A11 (raw; -6 = no sensor)
     { 2014, { "Low Pressure",           nullptr, 1.0f,   false } },  // A12 (raw; 3 = no sensor)
-    { 2048, { "Aux EEV",                nullptr, 1.0f,   false } },  // o6
+    { 2048, { "Aux EEV",                "steps", 10.0f,  false } },  // o6
 
     // "Telemetry" window (base 2093)
     { 2093, { "Cooling Setpoint",       "°C",    1.0f,   true  } },  // wire 0x0000 (controller-written)
@@ -55,7 +55,7 @@ static const RegEntry s_registers[] = {
     { 2136, { "Coil Temp",              "°C",    1.0f,   true  } },  // A2
     { 2137, { "Suction Temp",           "°C",    1.0f,   true  } },  // A3
     { 2138, { "Discharge Temp",         "°C",    1.0f,   true  } },  // A1
-    { 2140, { "Main EEV",               nullptr, 1.0f,   false } },  // A5
+    { 2140, { "Main EEV",               "steps", 10.0f,  false } },  // A5
     { 2141, { "Compressor Freq",        "Hz",    1.0f,   false } },  // A14
     { 2142, { "AC Voltage",             "V",     1.0f,   false } },  // A13
 };

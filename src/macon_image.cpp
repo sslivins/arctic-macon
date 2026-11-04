@@ -24,7 +24,7 @@ namespace {
 enum class Kind : uint8_t {
     SignedTemp,   // signed int8 low byte (whole °C, or a signed raw reading)
     Raw,          // 0..255, no scaling
-    DivTen,       // volts stored as raw = value / 10
+    DivTen,       // volts / RPM / EEV steps stored as raw = value / 10
     DivHundred,   // watts stored as raw = value / 100
 };
 
@@ -46,13 +46,13 @@ bool field_map(MaconField f, FieldMap *m) {
         case MaconField::AcVoltage:          *m = { REG_AC_VOLTAGE,           Kind::Raw };        return true;
         case MaconField::AcCurrent:          *m = { REG_AC_CURRENT,           Kind::Raw };        return true;
         case MaconField::DcVoltage:          *m = { REG_DC_BUS_VOLTAGE,       Kind::DivTen };     return true;
-        case MaconField::PrimaryEev:         *m = { REG_MAIN_EEV,             Kind::Raw };        return true;
+        case MaconField::PrimaryEev:         *m = { REG_MAIN_EEV,             Kind::DivTen };        return true;
         case MaconField::RealtimePower:      *m = { REG_REALTIME_POWER,       Kind::DivHundred }; return true;
         case MaconField::CoolingSetpoint:    *m = { REG_COOLING_SETPOINT,     Kind::SignedTemp }; return true;
         case MaconField::HeatingSetpoint:    *m = { REG_HEATING_SETPOINT,     Kind::SignedTemp }; return true;
         case MaconField::HotWaterSetpoint:   *m = { REG_HOT_WATER_SETPOINT,   Kind::SignedTemp }; return true;
         case MaconField::HotWaterCeiling:    *m = { REG_HOT_WATER_CEILING,    Kind::Raw };        return true;
-        case MaconField::AuxEev:             *m = { REG_AUX_EEV,              Kind::Raw };        return true;
+        case MaconField::AuxEev:             *m = { REG_AUX_EEV,              Kind::DivTen };        return true;
         case MaconField::HighPressure:       *m = { REG_HIGH_PRESSURE,        Kind::SignedTemp }; return true;
         case MaconField::LowPressure:        *m = { REG_LOW_PRESSURE,         Kind::Raw };        return true;
     }

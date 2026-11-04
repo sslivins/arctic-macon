@@ -98,6 +98,12 @@ bool working_mode_selectable(MaconWorkingMode mode);
 // measured is here in the library.
 constexpr uint16_t MACON_FAN_SPEED_MAX_RPM = 1000;
 
+// Full travel of both EEVs in motor steps. ASSUMPTION: matches the 0-500 range
+// of the manual-opening parameters AP50/AP51; pending the AP48/AP50 bench check
+// in docs/REGISTERS.md ("EEV opening unit"). Consumers show an opening as a
+// percentage of THIS value (the catalog max of primary_eev/aux_eev).
+constexpr uint16_t MACON_EEV_MAX_STEPS = 500;
+
 // A field's *_valid flag is true when the source register was present in the
 // decoded window. (With the current bare-array input every in-range register is
 // "present"; precise per-register presence tracking arrives with the Phase 2
@@ -143,10 +149,10 @@ struct MaconState {
     uint16_t ac_current;        bool ac_current_valid;      // reg2000 A4
     uint16_t ac_voltage;        bool ac_voltage_valid;      // reg2142 A13 (V x1)
     uint16_t dc_voltage;        bool dc_voltage_valid;      // reg2001 A7 (already x10 => volts)
-    // EEV openings, as the OEM shows them. Reported in "steps"; that unit (and
-    // whether a x10 scale applies) is unconfirmed - see docs/REGISTERS.md.
-    uint16_t primary_eev;       bool primary_eev_valid;     // reg2140 A5
-    uint16_t aux_eev;           bool aux_eev_valid;         // reg2048 o6 auxiliary (EVI) EEV
+    // EEV openings in motor steps (0..MACON_EEV_MAX_STEPS). ASSUMPTION: the wire
+    // byte (what the OEM display shows) is steps / 10 - see docs/REGISTERS.md.
+    uint16_t primary_eev;       bool primary_eev_valid;     // reg2140 A5 (raw x10 => steps)
+    uint16_t aux_eev;           bool aux_eev_valid;         // reg2048 o6 auxiliary (EVI) EEV (raw x10 => steps)
     uint16_t compressor_freq;   bool compressor_freq_valid; // reg2141 A14
     uint32_t realtime_power_w;  bool realtime_power_valid;  // reg2114 A9 (x100 => W)
 
