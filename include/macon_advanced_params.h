@@ -91,6 +91,28 @@ struct AdvEnumOption {
     const char *en_default;  // Canonical English + fallback when msg_id untranslated
 };
 
+// ---------------------------------------------------------------------------
+// Sign-flag parameters.
+//
+// A few vendor params overload the SIGN of the value as a separate setting:
+// AP40 is negative for a glycol loop and positive for a water loop, and the
+// magnitude is the ambient threshold.  UIs present such a param as a toggle
+// (`name`) plus a magnitude in [magnitude_min, max(|min_val|, max_val)], and
+// the library joins/splits the stored signed value (advanced_sign_join /
+// advanced_sign_split) so no consumer has to know the encoding.  The flag is
+// ON when the stored value is negative.  Labels follow the enum-option
+// pattern: English source of truth + a stable msg_id for the UI's i18n.
+// ---------------------------------------------------------------------------
+struct AdvSignFlag {
+    const char *name;           // Toggle label ("Glycol loop")
+    const char *name_msg_id;    // i18n key for `name`
+    const char *on_label;       // State label when the flag is on  ("Glycol")
+    const char *on_msg_id;
+    const char *off_label;      // State label when the flag is off ("Water")
+    const char *off_msg_id;
+    int16_t     magnitude_min;  // Smallest magnitude a split write accepts
+};
+
 struct AdvancedParam {
     uint8_t        ap;               // AP parameter number
     uint16_t       reg;             // Confirmed wire register, or ADV_REG_UNKNOWN (0)
@@ -135,6 +157,7 @@ struct AdvancedParam {
                                      // nullptr => detail is English-only.
     int16_t        display_multiplier = 1; // Display value = wire value * multiplier.
     const char    *display_unit = nullptr; // Optional user-facing replacement for unit.
+    const AdvSignFlag *sign_flag = nullptr; // Non-null: sign is a separate toggle
 };
 
 enum class AdvancedTemperatureKind : uint8_t {
@@ -263,6 +286,30 @@ int advanced_enum_option_index_for_wire(uint8_t ap, int16_t wire);
 /// caller issues the actual bus write.  `out` may be null (pure validity check).
 AdvWriteResult advanced_prepare_write_option(uint8_t ap, size_t option_index,
                                              AdvWritePlan *out);
+
+// ---------------------------------------------------------------------------
+// Sign-flag accessors (see AdvSignFlag).  Values are user-facing display
+// values, the same space as advanced_display_value().
+// ---------------------------------------------------------------------------
+
+/// Sign-flag metadata for AP `ap`, or nullptr if its sign is a plain sign.
+const AdvSignFlag *advanced_sign_flag(uint8_t ap);
+
+/// Largest magnitude a split write accepts for AP `ap` (0 if not sign-flag).
+int16_t advanced_sign_magnitude_max(uint8_t ap);
+
+/// Split a stored value of sign-flag AP `ap` into its toggle (true when the
+/// value is negative) and magnitude.  Returns false if `ap` has no sign flag.
+/// Either output may be null.
+bool advanced_sign_split(uint8_t ap, int16_t value, bool *flag, int16_t *magnitude);
+
+/// Join a toggle + magnitude into the stored value for sign-flag AP `ap`.
+/// Returns UNKNOWN_PARAM if `ap` is unknown or has no sign flag, OUT_OF_RANGE
+/// if `magnitude` is outside [magnitude_min, advanced_sign_magnitude_max()],
+/// otherwise OK with the signed value in `*value_out` (may be null).  Callers
+/// still run the normal write path (advanced_prepare_display_write) on it.
+AdvWriteResult advanced_sign_join(uint8_t ap, bool flag, int16_t magnitude,
+                                  int16_t *value_out);
 
 // ---------------------------------------------------------------------------
 // Categories — canonical display grouping/ordering, shared by every consumer
