@@ -84,6 +84,12 @@ setting, matching live `reg2040=−1`; Cn38's −30 default matches live
 `reg2038=−30`). Clearing `needs_sim_confirm` for the rest is done one parameter
 at a time as the simulator pins each index.
 
+Some parameters use the sign as a separate setting: AP40 is negative for a
+glycol loop and positive for water, with the magnitude as the ambient
+threshold. Those carry an `AdvSignFlag`; UIs show a toggle plus a magnitude and
+use `advanced_sign_split()` / `advanced_sign_join()` instead of handling the
+sign themselves.
+
 ## Using it (ESP-IDF)
 
 Add as a submodule under the consuming project's `components/`:

@@ -35,6 +35,16 @@ static const AdvEnumOption kPumpModeOptions[] = {
 static constexpr uint8_t kPumpModeOptionCount =
     sizeof(kPumpModeOptions) / sizeof(kPumpModeOptions[0]);
 
+// AP40 stores the loop type in the sign (negative = glycol) and the ambient
+// threshold in the magnitude.  A magnitude of 0 can't carry the sign, so a
+// split write needs at least 1.
+static const AdvSignFlag kGlycolLoopFlag = {
+    "Glycol loop", "ap.glycol_loop.name",
+    "Glycol",      "ap.glycol_loop.on",
+    "Water",       "ap.glycol_loop.off",
+    1,
+};
+
 // Category names. Canonical display order is defined by kCategories below; the
 // controller and sniffer UIs both render sections in that order so the advanced
 // block looks identical everywhere. Keep these string literals in sync with
@@ -146,8 +156,8 @@ static const AdvancedParam s_advanced[] = {
       "Time after the setpoint is reached before the working frequency is reduced. A value of 40 disables the reduction; any other value (factory setting 50) enables it.",
       CAT_PROTECT,  10, 120,  50, "min",    false, false, nullptr, 0, false, false, nullptr, 0, "ap.freq_reduce_delay.name", "ap.freq_reduce_delay.detail" },  // write-verified reg2039; doc Item39 (10~120min, def 40; doc: value 40 = no reduction, any other value reduces)
     { 40, 2040, "Cooling Comp-Stop Ambient",
-      "Cooling mode: the compressor stops when the outdoor ambient drops to this temperature. Use a negative value for glycol systems and a positive value for water systems; the magnitude is the ambient threshold.",
-      CAT_PROTECT, -45,  45,  15, "°C",     true,  false, nullptr, 0, false, false, nullptr, 0, "ap.cooling_comp_stop_ambient.name", "ap.cooling_comp_stop_ambient.detail" },  // write-verified reg2040
+      "Cooling mode: the compressor stops when the outdoor ambient drops to this temperature. Turn on Glycol loop if the water loop contains glycol antifreeze.",
+      CAT_PROTECT, -45,  45,  15, "°C",     true,  false, nullptr, 0, false, false, nullptr, 0, "ap.cooling_comp_stop_ambient.name", "ap.cooling_comp_stop_ambient.detail", 1, nullptr, &kGlycolLoopFlag },  // write-verified reg2040; sign = glycol (vendor doc: negative for glycol, positive for water)
     { 41, 2041, "Main EEV Superheat Control Method",
       "Superheat control method for the main expansion valve (0 = by superheat degree, 1 = by a lab-tuned chart). Read-only: the on-unit scaling is unconfirmed.",
       CAT_EEV, 0, 20, 10, nullptr, false, false, nullptr, 0, true, false, nullptr, 0, "ap.main_eev_superheat_method.name", "ap.main_eev_superheat_method.detail" },  // write-verified reg2041; doc Item41 (0~1: 0=per overheat degree, 1=per lab-testing chart). READ-ONLY: reg observed=10-13, outside doc 0~1 -> identity/scale uncertain
@@ -383,6 +393,38 @@ AdvWriteResult advanced_prepare_write_option(uint8_t ap, size_t option_index,
     }
     // Map the opaque id to its wire code and reuse the standard guardrail.
     return advanced_prepare_write(ap, p->enum_opts[option_index].wire, out);
+}
+
+const AdvSignFlag *advanced_sign_flag(uint8_t ap) {
+    const AdvancedParam *p = advanced_param_lookup(ap);
+    return p ? p->sign_flag : nullptr;
+}
+
+int16_t advanced_sign_magnitude_max(uint8_t ap) {
+    const AdvancedParam *p = advanced_param_lookup(ap);
+    if (!p || !p->sign_flag) return 0;
+    const int16_t lo = advanced_display_value(ap, p->min_val);
+    const int16_t hi = advanced_display_value(ap, p->max_val);
+    const int16_t neg = static_cast<int16_t>(lo < 0 ? -lo : 0);
+    return hi > neg ? hi : neg;
+}
+
+bool advanced_sign_split(uint8_t ap, int16_t value, bool *flag, int16_t *magnitude) {
+    if (!advanced_sign_flag(ap)) return false;
+    if (flag) *flag = value < 0;
+    if (magnitude) *magnitude = static_cast<int16_t>(value < 0 ? -value : value);
+    return true;
+}
+
+AdvWriteResult advanced_sign_join(uint8_t ap, bool flag, int16_t magnitude,
+                                  int16_t *value_out) {
+    const AdvSignFlag *f = advanced_sign_flag(ap);
+    if (!f) return AdvWriteResult::UNKNOWN_PARAM;
+    if (magnitude < f->magnitude_min || magnitude > advanced_sign_magnitude_max(ap)) {
+        return AdvWriteResult::OUT_OF_RANGE;
+    }
+    if (value_out) *value_out = static_cast<int16_t>(flag ? -magnitude : magnitude);
+    return AdvWriteResult::OK;
 }
 
 size_t advanced_category_count() { return kCategoryCount; }

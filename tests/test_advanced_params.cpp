@@ -306,6 +306,41 @@ int main() {
     CHECK(std::strcmp(advanced_param_lookup(41)->category, "EEV") == 0);
     CHECK(std::strcmp(advanced_param_lookup(48)->category, "Manual/Test") == 0);
 
+    // --- sign-flag params (AP40: negative = glycol loop) -------------------
+    {
+        const AdvSignFlag *f = advanced_sign_flag(40);
+        CHECK(f != nullptr);
+        CHECK(f && std::strcmp(f->name, "Glycol loop") == 0);
+        CHECK(advanced_sign_flag(38) == nullptr);   // plain signed param
+        CHECK(advanced_sign_magnitude_max(40) == 45);
+        CHECK(advanced_sign_magnitude_max(38) == 0);
+
+        bool flag = false;
+        int16_t mag = 0;
+        CHECK(advanced_sign_split(40, -1, &flag, &mag));
+        CHECK(flag && mag == 1);
+        CHECK(advanced_sign_split(40, 15, &flag, &mag));
+        CHECK(!flag && mag == 15);
+        CHECK(advanced_sign_split(40, 0, &flag, &mag));
+        CHECK(!flag && mag == 0);
+        CHECK(!advanced_sign_split(38, -30, &flag, &mag));
+
+        int16_t v = 0;
+        CHECK(advanced_sign_join(40, true, 1, &v) == AdvWriteResult::OK && v == -1);
+        CHECK(advanced_sign_join(40, false, 15, &v) == AdvWriteResult::OK && v == 15);
+        CHECK(advanced_sign_join(40, true, 45, &v) == AdvWriteResult::OK && v == -45);
+        // 0 can't carry the sign; past the table range is refused.
+        CHECK(advanced_sign_join(40, true, 0, &v) == AdvWriteResult::OUT_OF_RANGE);
+        CHECK(advanced_sign_join(40, false, 46, &v) == AdvWriteResult::OUT_OF_RANGE);
+        CHECK(advanced_sign_join(38, true, 5, &v) == AdvWriteResult::UNKNOWN_PARAM);
+        CHECK(advanced_sign_join(99, true, 5, &v) == AdvWriteResult::UNKNOWN_PARAM);
+        // Joined values go through the normal write path unchanged.
+        AdvWritePlan plan{};
+        CHECK(advanced_sign_join(40, true, 1, &v) == AdvWriteResult::OK);
+        CHECK(advanced_prepare_display_write(40, v, &plan) == AdvWriteResult::OK);
+        CHECK(plan.reg == 2040 && plan.raw == 0x00FF);
+    }
+
     // --- result names ------------------------------------------------------
     CHECK(std::strcmp(adv_write_result_name(AdvWriteResult::OK), "OK") == 0);
 
