@@ -196,21 +196,39 @@ AdvWriteResult validate_advanced_write(uint8_t ap, int16_t value);
 /// True if AP `ap` has a change-and-capture verified register (reg != 0).
 bool advanced_param_reg_known(uint8_t ap);
 
-/// A concrete, validated Macon write: the exact register and 16-bit wire value
-/// to send.  Only populated when advanced_prepare_write() returns OK.
-struct AdvWritePlan {
-    uint16_t reg;    // Wire register to write (fc=0x06)
-    uint16_t raw;    // 16-bit value to place on the wire
+class AdvWritePlan;
+AdvWriteResult advanced_prepare_write(uint8_t ap, int16_t value, AdvWritePlan *out);
+
+/// A validated advanced-parameter write, ready to execute.  Opaque: it carries
+/// the AP identity and encoded value but NO wire address — the library resolves
+/// the target itself when the plan is executed (MaconMaster::write_advanced on
+/// the bus, MaconImage::apply_advanced on a local image).  Only
+/// advanced_prepare_write() (and the display/option wrappers over it) can build
+/// a valid plan; a default-constructed or failed plan is never executable.
+class AdvWritePlan {
+public:
+    AdvWritePlan() = default;
+    bool     valid() const { return valid_; }
+    uint8_t  ap()    const { return ap_; }
+    /// Encoded value (as stored by the mainboard / decoded by
+    /// advanced_decode_raw).  Not an address.
+    uint16_t raw()   const { return raw_; }
+
+private:
+    friend AdvWriteResult advanced_prepare_write(uint8_t, int16_t, AdvWritePlan *);
+    uint8_t  ap_    = 0;
+    uint16_t raw_   = 0;
+    bool     valid_ = false;
 };
 
 /// Build a validated write plan for AP `ap` = `value`.  Runs the full
-/// validate_advanced_write() guardrail; on OK, fills `*out` with the confirmed
-/// register and the wire-encoded value.  Signed params are encoded as 8-bit
+/// validate_advanced_write() guardrail; on OK, fills `*out` with a valid plan
+/// holding the wire-encoded value.  Signed params are encoded as 8-bit
 /// two's-complement in the low byte (high byte 0), matching how the mainboard
 /// stores them (e.g. -10 -> 0x00F6); unsigned/enum codes are written verbatim.
-/// The library performs NO IO — the caller issues the actual bus write.  `out`
-/// may be null (acts as a pure validity check).  Returns the same result as
-/// validate_advanced_write().
+/// Performs NO IO.  On any non-OK result `*out` is reset to an invalid plan.
+/// `out` may be null (acts as a pure validity check).  Returns the same result
+/// as validate_advanced_write().
 AdvWriteResult advanced_prepare_write(uint8_t ap, int16_t value, AdvWritePlan *out);
 
 /// Convert between the raw AP engineering value and the user-facing value.

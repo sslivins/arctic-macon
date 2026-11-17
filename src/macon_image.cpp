@@ -1,5 +1,6 @@
 #include "macon_image.h"
 
+#include "macon_advanced_params.h"
 #include "macon_registers.h"
 #include "tuya_codec.h"
 
@@ -304,6 +305,22 @@ bool MaconImage::get_register(uint16_t addr, uint16_t *out) const {
     const int idx = index_of(addr);
     if (idx < 0 || out == nullptr) return false;
     *out = values_[idx];
+    return true;
+}
+
+bool MaconImage::read_advanced(uint8_t ap, uint16_t *raw_out) const {
+    if (raw_out == nullptr || !advanced_param_reg_known(ap)) return false;
+    const int idx = index_of(advanced_register_address(ap));
+    if (idx < 0 || !present_[idx]) return false;
+    *raw_out = values_[idx];
+    return true;
+}
+
+bool MaconImage::apply_advanced(const AdvWritePlan &plan) {
+    if (!plan.valid() || plan.raw() > 0xFF) return false;
+    const uint16_t addr = advanced_register_address(plan.ap());
+    if (!in_window(addr)) return false;
+    put(addr, plan.raw());
     return true;
 }
 

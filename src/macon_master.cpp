@@ -8,6 +8,7 @@
  * is unchanged.
  */
 #include "macon_master.h"
+#include "macon_advanced_params.h"
 
 #include <cstring>
 
@@ -232,6 +233,15 @@ MaconResult MaconMaster::write_register(uint16_t register_address, uint8_t value
 {
     tx_.flush_rx();
     return finish_write(link_.write_register(register_address, value));
+}
+
+MaconResult MaconMaster::write_advanced(const AdvWritePlan &plan)
+{
+    // Reject before touching the bus: an invalid plan, or a value wider than
+    // the one-byte register, never reaches the wire.
+    if (!plan.valid() || plan.raw() > 0xFF) return MaconResult::WriteFailed;
+    return write_register(advanced_register_address(plan.ap()),
+                          static_cast<uint8_t>(plan.raw()));
 }
 
 // ---------------------------------------------------------------------------

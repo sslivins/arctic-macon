@@ -120,6 +120,10 @@ public:
     MaconResult set_hot_water_setpoint(int celsius);
     MaconResult set_working_mode(MaconWorkingMode mode);
     MaconResult write_register(uint16_t register_address, uint8_t value);
+    // Execute a validated advanced-parameter plan (see advanced_prepare_write).
+    // The library resolves the register; an invalid plan or a value that does
+    // not fit one byte returns WriteFailed without any bus IO.
+    MaconResult write_advanced(const AdvWritePlan &plan);
 
 private:
     enum class PollOutcome { Ok, NoResponse, TransportError };
