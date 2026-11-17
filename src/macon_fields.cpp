@@ -244,7 +244,7 @@ uint32_t macon_layout_fingerprint() {
     Fnv f;
     for (size_t w = 0; w < tuya_codec::KNOWN_WINDOWS_COUNT; ++w) {
         const tuya_codec::RegWindow &win = tuya_codec::KNOWN_WINDOWS[w];
-        f.u16(win.field_a); f.u16(win.field_b); f.u16(win.reg_base); f.byte(win.prefix_len);
+        f.u16(win.field_a); f.u16(win.field_b); f.byte(win.prefix_len);
     }
     for (size_t i = 0; i < MACON_FIELDS_COUNT; ++i) {
         const MaconFieldDesc &d = MACON_FIELDS[i];

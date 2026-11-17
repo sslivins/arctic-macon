@@ -11,24 +11,25 @@
 // bus IO itself — the consumer (controller) drives the actual Macon write.
 //
 // Register mapping (reverse-engineered, EMPIRICAL):
-//   There is NO formula.  `reg = 2000 + AP` is WRONG — the wire layout is
-//   irregular/permuted and some params live in the telemetry window or in the
-//   un-polled gap (reg 2058-2092).  A per-parameter `reg` field carries the
+//   There is NO formula (the old guess "AP N lives at holding byte N" is
+//   WRONG) — the wire layout is irregular/permuted and some params live in the
+//   telemetry window or in the un-polled gap (@108..@142).  Registers are wire
+//   byte offsets ("@N").  A per-parameter `reg` field carries the
 //   ONLY registers we trust: those confirmed by CHANGE-AND-CAPTURE (we watched
 //   the OEM controller write the register, or changed the value and read the
 //   exact register back).  Confirmed set (change-and-capture verified):
-//     AP13->2012, AP14->2111, AP15->2112, AP16->2015, AP17->2016, AP18->2017,
-//     AP19->2018, AP20->2019, AP24->2023, AP25->2024, AP26->2025, AP27->2026,
-//     AP28->2027, AP29->2030, AP30->2031, AP31->2029, AP32->2032, AP33->2033,
-//     AP34->2035, AP35->2034, AP38->2038, AP39->2039, AP40->2040, AP41->2041,
-//     AP42->2042, AP43->2043, AP44->2044, AP45->2045, AP46->2046, AP47->2047,
-//     AP48->2060, AP49->2061, AP50->2062, AP51->2064.
-//   The AP24-47 block is IRREGULAR/PERMUTED (e.g. AP31->2029 and AP34<->AP35
-//   are swapped, AP29->2030) — there is NO offset formula; every address above
+//     AP13->@62, AP14->@18, AP15->@19, AP16->@65, AP17->@66, AP18->@67,
+//     AP19->@68, AP20->@69, AP24->@73, AP25->@74, AP26->@75, AP27->@76,
+//     AP28->@77, AP29->@80, AP30->@81, AP31->@79, AP32->@82, AP33->@83,
+//     AP34->@85, AP35->@84, AP38->@88, AP39->@89, AP40->@90, AP41->@91,
+//     AP42->@92, AP43->@93, AP44->@94, AP45->@95, AP46->@96, AP47->@97,
+//     AP48->@110, AP49->@111, AP50->@112, AP51->@114.
+//   The AP24-47 block is IRREGULAR/PERMUTED (e.g. AP31->@79 and AP34<->AP35
+//   are swapped, AP29->@80) — there is NO offset formula; every address above
 //   was individually write-verified on the OEM bus.  AP36/37 are doc-omitted
 //   and remain ADV_REG_UNKNOWN.  Correlation- or offset-inference-only mappings
-//   are NOT trusted (the old "AP40->2040 / AP38->2038" anchors were disproven
-//   when AP48 change-captured to reg2060, not reg2048).
+//   are NOT trusted (the old "AP40->@90 / AP38->@88" anchors were disproven
+//   when AP48 change-captured to @110, not @98).
 //
 // Write gating: a write reaches OK only when the value is valid AND the reg is
 // known AND needs_sim_confirm is false.  needs_sim_confirm stays true for the
@@ -44,18 +45,18 @@
 
 namespace arctic {
 
-// The advanced ("AP") parameters historically were assumed to live at wire
-// register (2000 + AP).  That formula is WRONG (see file header).  Each param
-// now carries an explicit, empirically-confirmed `reg`; unverified params use
-// ADV_REG_UNKNOWN.  ADV_REG_BASE is kept only as the telemetry/config boundary.
+// The advanced ("AP") parameters historically were assumed to live at holding
+// byte AP (@50+AP).  That formula is WRONG (see file header).  Each param now
+// carries an explicit, empirically-confirmed `reg` (a wire byte offset);
+// unverified params use ADV_REG_UNKNOWN.  Offset 0 is a real register (@0 =
+// cooling setpoint), so the sentinel is 0xFFFF, never 0.
 constexpr uint8_t  ADV_AP_MIN       = 13;
 constexpr uint8_t  ADV_AP_MAX       = 57;
-constexpr uint16_t ADV_REG_BASE     = 2000;   // config window starts here
-constexpr uint16_t ADV_REG_UNKNOWN  = 0;      // reg not yet change-and-captured
+constexpr uint16_t ADV_REG_UNKNOWN  = 0xFFFF; // reg not yet change-and-captured
 
-/// Wire register that holds AP parameter `ap`, or ADV_REG_UNKNOWN (0) if the
+/// Wire byte offset of AP parameter `ap`, or ADV_REG_UNKNOWN (0xFFFF) if the
 /// parameter is unknown or its register has not been change-and-capture
-/// verified.  There is NO 2000+ap formula — this is a table lookup.
+/// verified.  There is NO formula — this is a table lookup.
 uint16_t advanced_register_address(uint8_t ap);
 
 // ---------------------------------------------------------------------------
@@ -115,7 +116,7 @@ struct AdvSignFlag {
 
 struct AdvancedParam {
     uint8_t        ap;               // AP parameter number
-    uint16_t       reg;             // Confirmed wire register, or ADV_REG_UNKNOWN (0)
+    uint16_t       reg;             // Confirmed wire byte offset, or ADV_REG_UNKNOWN (0xFFFF)
     const char    *name;             // Short title ("Frequency Ratio K1")
     const char    *detail;           // Full human-readable explanation of what the
                                      // parameter does and when it applies.  English,
@@ -180,7 +181,7 @@ enum class AdvWriteResult {
 /// Look up advanced-parameter metadata by AP number. Returns nullptr if none.
 const AdvancedParam *advanced_param_lookup(uint8_t ap);
 
-/// Look up advanced-parameter metadata by wire register address (2000 + ap).
+/// Look up advanced-parameter metadata by wire byte offset (see `reg`).
 /// Returns nullptr for addresses that are not advanced parameters.
 const AdvancedParam *advanced_param_for_register(uint16_t address);
 
@@ -193,7 +194,7 @@ bool register_is_advanced_param(uint16_t address);
 /// the value is valid AND the register is known AND writing is unlocked.
 AdvWriteResult validate_advanced_write(uint8_t ap, int16_t value);
 
-/// True if AP `ap` has a change-and-capture verified register (reg != 0).
+/// True if AP `ap` has a change-and-capture verified register (reg != ADV_REG_UNKNOWN).
 bool advanced_param_reg_known(uint8_t ap);
 
 class AdvWritePlan;

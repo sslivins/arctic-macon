@@ -11,10 +11,12 @@ namespace arctic {
 
 // The MaconImage window bounds are declared as plain literals in the public
 // header so that header carries no register-map dependency. Keep them honest:
-static_assert(MaconImage::window_base() == HOLDING_START,
-              "MaconImage window base drifted from HOLDING_START");
-static_assert(MaconImage::window_count() == INPUT_START + INPUT_COUNT - HOLDING_START,
-              "MaconImage window count drifted from the register map");
+static_assert(MaconImage::window_base() == TELEMETRY_FIRST,
+              "MaconImage window base drifted from TELEMETRY_FIRST");
+static_assert(MaconImage::window_count() >= HOLDING_FIRST + HOLDING_COUNT,
+              "MaconImage window no longer spans both read windows");
+static_assert(TELEMETRY_FIRST + TELEMETRY_COUNT <= HOLDING_FIRST,
+              "telemetry window overlaps the holding window");
 
 // ---------------------------------------------------------------------------
 // Field -> wire mapping. Kind determines the inverse scaling / range applied
@@ -60,17 +62,18 @@ bool field_map(MaconField f, FieldMap *m) {
     return false;
 }
 
-// Register + mask for each run-state flag.
-void flag_map(MaconFlag f, uint16_t *reg, uint8_t *mask) {
+// Register + mask for each run-state flag. Returns false for an unmapped flag.
+bool flag_map(MaconFlag f, uint16_t *reg, uint8_t *mask) {
     switch (f) {
-        case MaconFlag::Fan:     *reg = REG_ICON_BITS2;    *mask = 0x10; return;  // reg2129 bit4
-        case MaconFlag::Cooling: *reg = REG_ICON_BITS2;    *mask = 0x04; return;  // reg2129 bit2
-        case MaconFlag::Pump:    *reg = REG_STATUS_BYTE;   *mask = 0x08; return;  // reg2130 bit3
-        case MaconFlag::UnitOn:  *reg = REG_FAULT_RUNSTATE; *mask = 0x20; return; // reg2007 bit5
-        case MaconFlag::Defrost: *reg = REG_ICON_BITS2;    *mask = 0x02; return;  // reg2129 bit1
-        case MaconFlag::CompressorIcon: *reg = REG_STATUS_BYTE; *mask = 0x04; return; // reg2130 bit2
+        case MaconFlag::Fan:     *reg = REG_ICON_BITS2;    *mask = 0x10; return true;  // @36 bit4
+        case MaconFlag::Cooling: *reg = REG_ICON_BITS2;    *mask = 0x04; return true;  // @36 bit2
+        case MaconFlag::Pump:    *reg = REG_STATUS_BYTE;   *mask = 0x08; return true;  // @37 bit3
+        case MaconFlag::UnitOn:  *reg = REG_FAULT_RUNSTATE; *mask = 0x20; return true; // @57 bit5
+        case MaconFlag::Defrost: *reg = REG_ICON_BITS2;    *mask = 0x02; return true;  // @36 bit1
+        case MaconFlag::CompressorIcon: *reg = REG_STATUS_BYTE; *mask = 0x04; return true; // @37 bit2
     }
     *reg = 0; *mask = 0;
+    return false;
 }
 
 }  // namespace
@@ -79,7 +82,7 @@ void flag_map(MaconFlag f, uint16_t *reg, uint8_t *mask) {
 
 uint16_t macon_field_address(MaconField f) {
     FieldMap m;
-    return field_map(f, &m) ? m.reg : 0;
+    return field_map(f, &m) ? m.reg : MACON_NO_ADDRESS;
 }
 
 void MaconImage::clear() {
@@ -169,8 +172,7 @@ MaconSetResult MaconImage::set_value(MaconField f, int32_t value) {
 
 void MaconImage::set_flag(MaconFlag f, bool on) {
     uint16_t reg = 0; uint8_t mask = 0;
-    flag_map(f, &reg, &mask);
-    if (reg == 0) return;
+    if (!flag_map(f, &reg, &mask)) return;
     const int idx = index_of(reg);
     if (idx < 0) return;
     uint16_t v = values_[idx];
@@ -206,7 +208,7 @@ void MaconImage::fill_baseline() {
         const tuya_codec::RegWindow &win = tuya_codec::KNOWN_WINDOWS[w];
         const uint16_t n = static_cast<uint16_t>(win.field_b - win.prefix_len);
         for (uint16_t i = 0; i < n; ++i) {
-            const int idx = index_of(static_cast<uint16_t>(win.reg_base + i));
+            const int idx = index_of(static_cast<uint16_t>(win.field_a + i));
             if (idx >= 0) present_[idx] = true;
         }
     }
@@ -218,7 +220,7 @@ size_t MaconImage::read_window(uint16_t field_a, uint16_t field_b,
     if (win == nullptr || out == nullptr || cap < win->field_b) return 0;
     std::memset(out, 0, win->field_b);   // static prefix bytes (none today) read as 0
     for (uint16_t i = win->prefix_len; i < win->field_b; ++i) {
-        const int idx = index_of(static_cast<uint16_t>(win->reg_base + i - win->prefix_len));
+        const int idx = index_of(static_cast<uint16_t>(win->field_a + i - win->prefix_len));
         out[i] = idx >= 0 ? static_cast<uint8_t>(values_[idx]) : 0;
     }
     return win->field_b;
@@ -236,7 +238,7 @@ bool MaconImage::apply_write(uint16_t wire_addr, const uint8_t *data, size_t len
             const tuya_codec::RegWindow &win = tuya_codec::KNOWN_WINDOWS[w];
             if (a < static_cast<uint32_t>(win.field_a) + win.prefix_len ||
                 a >= static_cast<uint32_t>(win.field_a) + win.field_b) continue;
-            idx[i] = index_of(static_cast<uint16_t>(win.reg_base + (a - win.field_a - win.prefix_len)));
+            idx[i] = index_of(static_cast<uint16_t>(a - win.prefix_len));
             break;
         }
         if (idx[i] < 0) return false;

@@ -56,7 +56,7 @@ struct MaconObservedWindow {
     uint16_t field_b     = 0;  // wire count field (payload byte length)
     uint32_t hits        = 0;  // times this window has been seen
     uint32_t last_ms     = 0;  // timestamp of most recent sighting
-    uint8_t  known       = 0;  // 1 if the codec maps it to a register base
+    uint8_t  known       = 0;  // 1 if the codec maps it to a known window
     uint8_t  payload_len = 0;  // bytes captured (<= sizeof(payload))
     uint8_t  payload[64] = {}; // most-recent full payload (incl. prefix)
 };

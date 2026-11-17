@@ -100,7 +100,7 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
         return R(regnum);
     };
 
-    // --- operating mode (reg2049) -----------------------------------------
+    // --- operating mode (@99) -----------------------------------------
     out->mode = decode_mode(val(REG_OPERATING_MODE, &out->mode_valid));
     if (!out->mode_valid) {
         out->mode = MaconMode::Unknown;   // absent register must not decode as Heating
@@ -112,58 +112,58 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
     }
 
     // --- run-state + icon bits --------------------------------------------
-    // reg2007 = run/fault bitfield (0x20 = running); reg2130 = icon bitfield #1
-    // (bit2 compressor, bit3 pump); reg2129 = icon bitfield #2 (bit1 defrost,
-    // bit4 fan). ON follows the mainboard run-state, NOT reg2130 (the real unit
-    // runs with reg2130 = 0). 0x20 is the only confirmed run code on this DHW
+    // @57 = run/fault bitfield (0x20 = running); @37 = icon bitfield #1
+    // (bit2 compressor, bit3 pump); @36 = icon bitfield #2 (bit1 defrost,
+    // bit4 fan). ON follows the mainboard run-state, NOT @37 (the real unit
+    // runs with @37 = 0). 0x20 is the only confirmed run code on this DHW
     // controller.
     bool run_valid = false, icon1_valid = false, icon2_valid = false, fan_valid = false;
-    const uint16_t run_state  = val(REG_FAULT_RUNSTATE, &run_valid);   // reg2007
-    const uint16_t icon_bits1 = val(REG_STATUS_BYTE, &icon1_valid);    // reg2130
-    const uint16_t icon_bits2 = val(REG_ICON_BITS2, &icon2_valid);     // reg2129
-    const uint16_t fan_raw    = val(REG_DC_MOTOR_SPEED, &fan_valid);   // reg2003 A10
+    const uint16_t run_state  = val(REG_FAULT_RUNSTATE, &run_valid);   // @57
+    const uint16_t icon_bits1 = val(REG_STATUS_BYTE, &icon1_valid);    // @37
+    const uint16_t icon_bits2 = val(REG_ICON_BITS2, &icon2_valid);     // @36
+    const uint16_t fan_raw    = val(REG_DC_MOTOR_SPEED, &fan_valid);   // @53 A10
 
     out->running       = (run_state & 0x20) != 0;
-    out->compressor_on = (icon_bits1 & 0x04) != 0;  // reg2130 bit2
-    out->pump_on       = (icon_bits1 & 0x08) != 0;  // reg2130 bit3
-    out->defrost_on    = (icon_bits2 & 0x02) != 0;  // reg2129 bit1
-    out->cooling_on    = (icon_bits2 & 0x04) != 0;  // reg2129 bit2
+    out->compressor_on = (icon_bits1 & 0x04) != 0;  // @37 bit2
+    out->pump_on       = (icon_bits1 & 0x08) != 0;  // @37 bit3
+    out->defrost_on    = (icon_bits2 & 0x02) != 0;  // @36 bit1
+    out->cooling_on    = (icon_bits2 & 0x04) != 0;  // @36 bit2
     out->cooling_on_valid = icon2_valid;
-    out->fan_on        = (icon_bits2 & 0x10) != 0;  // reg2129 bit4
-    // reg2003 A10 DC fan-motor speed. The raw byte is a tens-of-RPM level; ×10
+    out->fan_on        = (icon_bits2 & 0x10) != 0;  // @36 bit4
+    // @53 A10 DC fan-motor speed. The raw byte is a tens-of-RPM level; ×10
     // yields RPM (same convention as A13/A7 voltage). Scale verified with a
     // handheld tachometer on HP2 (2026-09-24): raw 70 => 700 RPM measured.
     out->fan_level     = static_cast<uint16_t>(fan_raw * 10);   // ×10 => RPM
     out->fan_speed_max = MACON_FAN_SPEED_MAX_RPM;               // assumed full scale
 
     // --- temperatures (signed whole °C) -----------------------------------
-    out->water_tank_c      = s8(val(REG_WATER_TANK_TEMP, &out->water_tank_valid));       // reg2008 o1
-    out->outlet_c          = s8(val(REG_OUTLET_WATER_TEMP, &out->outlet_valid));         // reg2132 o3
-    out->inlet_c           = s8(val(REG_INLET_WATER_TEMP, &out->inlet_valid));           // reg2133 o2
-    out->outdoor_ambient_c = s8(val(REG_OUTDOOR_AMBIENT_TEMP, &out->outdoor_ambient_valid)); // reg2134 o4
-    out->indoor_coil_c     = s8(val(REG_COOL_COIL_TEMP, &out->indoor_coil_valid));       // reg2135 A6
-    out->ipm_c             = s8(val(REG_IPM_TEMP, &out->ipm_valid));                     // reg2113 A8
-    // Refrigerant-cycle temps: discharge(2138) > cool coil(2135) > suction(2137)
-    // > coil(2136).
-    out->discharge_c       = s8(val(REG_DISCHARGE_TEMP, &out->discharge_valid));         // reg2138 A1
-    out->suction_c         = s8(val(REG_SUCTION_TEMP, &out->suction_valid));             // reg2137 A3
-    out->outdoor_coil_c    = s8(val(REG_COIL_TEMP, &out->outdoor_coil_valid));           // reg2136 A2
+    out->water_tank_c      = s8(val(REG_WATER_TANK_TEMP, &out->water_tank_valid));       // @58 o1
+    out->outlet_c          = s8(val(REG_OUTLET_WATER_TEMP, &out->outlet_valid));         // @39 o3
+    out->inlet_c           = s8(val(REG_INLET_WATER_TEMP, &out->inlet_valid));           // @40 o2
+    out->outdoor_ambient_c = s8(val(REG_OUTDOOR_AMBIENT_TEMP, &out->outdoor_ambient_valid)); // @41 o4
+    out->indoor_coil_c     = s8(val(REG_COOL_COIL_TEMP, &out->indoor_coil_valid));       // @42 A6
+    out->ipm_c             = s8(val(REG_IPM_TEMP, &out->ipm_valid));                     // @20 A8
+    // Refrigerant-cycle temps: discharge(@45) > cool coil(@42) > suction(@44)
+    // > coil(@43).
+    out->discharge_c       = s8(val(REG_DISCHARGE_TEMP, &out->discharge_valid));         // @45 A1
+    out->suction_c         = s8(val(REG_SUCTION_TEMP, &out->suction_valid));             // @44 A3
+    out->outdoor_coil_c    = s8(val(REG_COIL_TEMP, &out->outdoor_coil_valid));           // @43 A2
 
     // --- setpoints ---------------------------------------------------------
     out->cooling_setpoint =
-        s8(val(REG_COOLING_SETPOINT, &out->cooling_setpoint_valid));   // reg2093 wire 0x0000
+        s8(val(REG_COOLING_SETPOINT, &out->cooling_setpoint_valid));   // @0
     out->hot_water_setpoint =
-        s8(val(REG_HOT_WATER_SETPOINT, &out->hot_water_setpoint_valid)); // reg2095 wire 0x0002 (live)
+        s8(val(REG_HOT_WATER_SETPOINT, &out->hot_water_setpoint_valid)); // @2 (live)
     out->heating_setpoint =
-        s8(val(REG_HEATING_SETPOINT, &out->heating_setpoint_valid));     // reg2094 wire 0x0001
+        s8(val(REG_HEATING_SETPOINT, &out->heating_setpoint_valid));     // @1
     out->hot_water_ceiling =
-        static_cast<int16_t>(val(REG_HOT_WATER_CEILING, &out->hot_water_ceiling_valid)); // reg2012 AP13 ceiling
+        static_cast<int16_t>(val(REG_HOT_WATER_CEILING, &out->hot_water_ceiling_valid)); // @62 AP13 ceiling
 
     // --- electrical --------------------------------------------------------
-    out->ac_current      = val(REG_AC_CURRENT, &out->ac_current_valid);   // reg2000 A4
-    out->ac_voltage      = val(REG_AC_VOLTAGE, &out->ac_voltage_valid);  // reg2142 A13 (V x1)
+    out->ac_current      = val(REG_AC_CURRENT, &out->ac_current_valid);   // @50 A4
+    out->ac_voltage      = val(REG_AC_VOLTAGE, &out->ac_voltage_valid);  // @49 A13 (V x1)
     out->dc_voltage      = static_cast<uint16_t>(
-        val(REG_DC_BUS_VOLTAGE, &out->dc_voltage_valid) * 10);           // reg2001 A7 (x10 => volts)
+        val(REG_DC_BUS_VOLTAGE, &out->dc_voltage_valid) * 10);           // @51 A7 (x10 => volts)
     // EEV openings: the wire byte is assumed to be signed steps / 10 (REGISTERS.md).
     // After every stop the unit re-zeros both valves by driving them past closed,
     // and the count dips negative (seen down to -30). The valve is shut then, so
@@ -172,21 +172,21 @@ DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
         const int16_t v = s8(raw);
         return v > 0 ? static_cast<uint16_t>(v * 10) : 0;
     };
-    out->primary_eev     = eev_steps(val(REG_MAIN_EEV, &out->primary_eev_valid)); // reg2140 A5
-    out->aux_eev         = eev_steps(val(REG_AUX_EEV, &out->aux_eev_valid));      // reg2048 o6
-    out->compressor_freq = val(REG_COMPRESSOR_FREQ, &out->compressor_freq_valid); // reg2141 A14
+    out->primary_eev     = eev_steps(val(REG_MAIN_EEV, &out->primary_eev_valid)); // @47 A5
+    out->aux_eev         = eev_steps(val(REG_AUX_EEV, &out->aux_eev_valid));      // @98 o6
+    out->compressor_freq = val(REG_COMPRESSOR_FREQ, &out->compressor_freq_valid); // @48 A14
     out->realtime_power_w = static_cast<uint32_t>(
-        val(REG_REALTIME_POWER, &out->realtime_power_valid) * 100);      // reg2114 A9 (x100 => W)
-    out->high_pressure   = s8(val(REG_HIGH_PRESSURE, &out->high_pressure_valid)); // reg2013 A11
-    out->low_pressure    = val(REG_LOW_PRESSURE, &out->low_pressure_valid);       // reg2014 A12
+        val(REG_REALTIME_POWER, &out->realtime_power_valid) * 100);      // @21 A9 (x100 => W)
+    out->high_pressure   = s8(val(REG_HIGH_PRESSURE, &out->high_pressure_valid)); // @63 A11
+    out->low_pressure    = val(REG_LOW_PRESSURE, &out->low_pressure_valid);       // @64 A12
 
     // --- raw fault/run registers (bit decode stays in the consumer) --------
     bool f_run_v = false, f_ee_v = false, f_comp_v = false, f_elec_v = false, f_ref_v = false;
-    out->fault_run  = static_cast<uint8_t>(val(REG_FAULT_RUNSTATE, &f_run_v));    // reg2007
-    out->fault_ee   = static_cast<uint8_t>(val(REG_FAULT_SENSOR_EE, &f_ee_v));    // reg2125
-    out->fault_comp = static_cast<uint8_t>(val(REG_FAULT_SENSOR_COMP, &f_comp_v));// reg2126
-    out->fault_elec = static_cast<uint8_t>(val(REG_FAULT_ELEC, &f_elec_v));       // reg2127
-    out->fault_ref  = static_cast<uint8_t>(val(REG_FAULT, &f_ref_v));             // reg2128
+    out->fault_run  = static_cast<uint8_t>(val(REG_FAULT_RUNSTATE, &f_run_v));    // @57
+    out->fault_ee   = static_cast<uint8_t>(val(REG_FAULT_SENSOR_EE, &f_ee_v));    // @32
+    out->fault_comp = static_cast<uint8_t>(val(REG_FAULT_SENSOR_COMP, &f_comp_v));// @33
+    out->fault_elec = static_cast<uint8_t>(val(REG_FAULT_ELEC, &f_elec_v));       // @34
+    out->fault_ref  = static_cast<uint8_t>(val(REG_FAULT, &f_ref_v));             // @35
     out->faults_valid = f_run_v && f_ee_v && f_comp_v && f_elec_v && f_ref_v;
 
     return status;
@@ -205,8 +205,8 @@ MaconOperation decode_operation(const MaconState &s) {
     }
 
     // Fault takes priority over everything else: the four sensor/protection
-    // bitfields (reg2125-2128) plus the fault bits of the run-state byte
-    // (reg2007 low nibble; bit5 0x20 is the enable flag, not a fault).
+    // bitfields (@32-@35) plus the fault bits of the run-state byte
+    // (@57 low nibble; bit5 0x20 is the enable flag, not a fault).
     const bool fault =
         (s.faults_valid && (s.fault_ee | s.fault_comp | s.fault_elec | s.fault_ref)) ||
         (s.fault_run & 0x0F);
@@ -214,7 +214,7 @@ MaconOperation decode_operation(const MaconState &s) {
         return MaconOperation::Fault;
     }
 
-    // Enable flag: reg2007 bit5. Masked (not == 0x20) so a co-set bit can't hide
+    // Enable flag: @57 bit5. Masked (not == 0x20) so a co-set bit can't hide
     // the enabled state.
     if (!(s.fault_run & 0x20)) {
         return MaconOperation::Off;
@@ -224,7 +224,7 @@ MaconOperation decode_operation(const MaconState &s) {
         return MaconOperation::Defrost;
     }
 
-    // Compressor-running gate: reg2141 frequency, NOT the reg2130 icon bit
+    // Compressor-running gate: @48 frequency, NOT the @37 icon bit
     // (which reads 0 on this unit even while the compressor runs).
     if (!(s.compressor_freq_valid && s.compressor_freq > 0)) {
         return MaconOperation::Idle;
@@ -260,7 +260,7 @@ MaconMode live_direction(const MaconState &s) {
             case MaconWorkingMode::HotWater:
                 return MaconMode::Heating;
             case MaconWorkingMode::HotWaterCooling:
-                // reg2049 is stale in Auto (it can read cooling while the unit
+                // @99 is stale in Auto (it can read cooling while the unit
                 // heats the tank), so don't fall back to it.
                 return MaconMode::Unknown;
             default:
@@ -351,7 +351,7 @@ size_t encode_cooling_setpoint(uint8_t *buf, size_t buf_capacity, int celsius) {
     if (celsius < -128) celsius = -128;
     if (celsius >  127) celsius =  127;
     const uint8_t data = static_cast<uint8_t>(static_cast<int8_t>(celsius));
-    // Cooling setpoint lives at wire addr 0x0000, count 1 (see reg2093).
+    // Cooling setpoint lives at wire addr 0x0000, count 1 (see @0).
     return tuya_codec::encode_command(buf, buf_capacity,
                                       /*field_a=*/0x0000, /*count=*/1, &data);
 }
@@ -362,7 +362,7 @@ size_t encode_cooling_setpoint(uint8_t *buf, size_t buf_capacity, int celsius) {
 namespace {
 // Library-owned static defaults. Cooling has no unit-reported limit register,
 // so these are authoritative. Hot-water's max is refined from the live ceiling
-// (reg2012) when available (see setpoint_limits()).
+// (@62) when available (see setpoint_limits()).
 constexpr int kCoolingMin = 4, kCoolingMax = 30;
 constexpr int kHeatingMin = 20, kHeatingMax = 60;
 constexpr int kHotWaterMin = 30, kHotWaterMax = 60;
@@ -375,7 +375,7 @@ SetpointLimits setpoint_limits(SetpointKind kind, const MaconState *state) {
         case SetpointKind::Heating:
             return {kHeatingMin, kHeatingMax, false};
         case SetpointKind::HotWater: {
-            // Prefer the unit's live ceiling (reg2012 AP13) when present and
+            // Prefer the unit's live ceiling (@62 AP13) when present and
             // sane (above the min), else the library default.
             if (state && state->hot_water_ceiling_valid &&
                 state->hot_water_ceiling > kHotWaterMin) {

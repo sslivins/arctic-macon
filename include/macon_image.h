@@ -49,7 +49,7 @@ enum class MaconField : uint8_t {
     PrimaryEev,         // opening in steps (A5; wire = /10, assumed)
     RealtimePower,      // watts   (wire = /100)
     CoolingSetpoint,    // whole °C
-    HeatingSetpoint,    // whole °C (reg2094, modes 1 and 2)
+    HeatingSetpoint,    // whole °C (@1, modes 1 and 2)
     HotWaterSetpoint,   // whole °C
     HotWaterCeiling,    // whole °C (AP13 ceiling)
     AuxEev,             // opening in steps (o6; wire = /10, assumed)
@@ -65,8 +65,10 @@ enum class MaconFlag : uint8_t { Fan, Cooling, Pump, UnitOn, Defrost, Compressor
 // Wire address backing a settable numeric/enum field. Intended only for a
 // human-facing diagnostic dump (e.g. a CSV "address" column) that wants to show
 // where a value came from — the consumer still gets the value from its decoded
-// state, never by reading the register itself. Returns 0 if the field is not
-// backed by a single address.
+// state, never by reading the register itself. Addresses are wire byte offsets
+// ("@N"); returns MACON_NO_ADDRESS if the field is not backed by a single
+// address (0 is a real register, @0 = cooling setpoint).
+constexpr uint16_t MACON_NO_ADDRESS = 0xFFFF;
 uint16_t macon_field_address(MaconField f);
 
 // Outcome of a set_temp()/set_value() call.
@@ -92,7 +94,7 @@ public:
     void clear();
 
     // --- real-mode ingest ---------------------------------------------------
-    // Copy a wire window into the image (index = addr - base), marking each
+    // Copy a wire window into the image (byte k -> register @(base+k)), marking each
     // covered register present. Registers outside the image window are skipped.
     MaconCoverage ingest(uint16_t base, const uint16_t *regs, size_t count);
     // Convenience for the raw 1-byte wire payload the transport delivers.
@@ -103,7 +105,7 @@ public:
     MaconSetResult set_value(MaconField f, int32_t value);
     void set_flag(MaconFlag f, bool on);
     void set_working_mode(MaconWorkingMode mode);
-    // Live operating direction (reg2049), set by the unit itself — distinct
+    // Live operating direction (@99), set by the unit itself — distinct
     // from the user-selected working mode. Unknown is ignored.
     void set_operating_direction(MaconMode mode);
     void set_fault(MaconFaultId id, bool active);
@@ -139,7 +141,7 @@ public:
 
     // --- raw register debug passthrough -------------------------------------
     // Address-based poke/peek for a raw-register debug endpoint. The image owns
-    // the window bounds so the consumer needs no HOLDING_START/INPUT_START.
+    // the window bounds so the consumer needs no window constants.
     bool set_register(uint16_t addr, uint16_t value);
     bool get_register(uint16_t addr, uint16_t *out) const;
     // Copy present-or-zero register values into buf (up to cap); returns count
@@ -153,16 +155,19 @@ public:
     static constexpr uint16_t window_base()  { return kBase; }
     static constexpr uint16_t window_count() { return kCount; }
     bool in_window(uint16_t addr) const {
-        return addr >= kBase && addr < static_cast<uint16_t>(kBase + kCount);
+        // Unsigned wrap rejects addr < kBase without a (kBase == 0) tautology.
+        return static_cast<uint32_t>(addr) - kBase < kCount;
     }
 
 private:
-    // Flat cache spanning both the holding and telemetry windows. The bounds
+    // Flat cache over wire offsets @0..@142: the telemetry (@0..@49) and holding
+    // (@50..@107) read windows plus the write-only gap above them (e.g. AP48
+    // @110). The bounds
     // are declared here as library-owned literals so this public header carries
     // no register-map dependency; macon_image.cpp static_asserts them against
     // macon_registers.h so they can never silently drift.
-    static constexpr uint16_t kBase  = 2000;   // holding-window base
-    static constexpr uint16_t kCount = 143;    // spans both windows through telemetry
+    static constexpr uint16_t kBase  = 0;      // first wire offset (telemetry @0)
+    static constexpr uint16_t kCount = 143;    // @0..@142
 
     // Returns index for addr, or -1 if outside the window.
     int index_of(uint16_t addr) const;

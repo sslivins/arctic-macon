@@ -68,7 +68,7 @@ static size_t ingest_capture(MaconImage &img, const char *hex, int *requests) {
         if (f.dir == DIR_REQUEST) {
             ++*requests;
         } else if (f.payload) {
-            img.ingest_bytes(f.window->reg_base, f.payload + f.window->prefix_len,
+            img.ingest_bytes(f.window->field_a + f.window->prefix_len, f.payload + f.window->prefix_len,
                              f.payload_len - f.window->prefix_len);
             ++responses;
         }
@@ -86,36 +86,36 @@ static void test_real_capture_decode() {
 
     MaconState s;
     img.decode(&s);
-    // Telemetry window (reg 2093..2142).
-    CHECK(s.cooling_setpoint_valid && s.cooling_setpoint == 10);   // 2093 = 0x0a
-    CHECK(s.heating_setpoint_valid && s.heating_setpoint == 40);   // 2094 = 0x28
-    CHECK(s.hot_water_setpoint_valid && s.hot_water_setpoint == 50); // 2095 = 0x32
-    CHECK(s.working_mode_valid && s.working_mode == MaconWorkingMode::HotWater); // 2096 = 5
-    CHECK(s.ac_voltage_valid && s.ac_voltage == 230);              // 2142 = 230 (x1)
-    CHECK(s.primary_eev_valid && s.primary_eev == 190);            // 2140 = 19 (x10 => steps)
-    CHECK(s.ipm_valid && s.ipm_c == 12);                           // 2113
-    CHECK(s.realtime_power_valid && s.realtime_power_w == 0);      // 2114
-    CHECK(s.outlet_valid && s.outlet_c == 10);                     // 2132
-    CHECK(s.inlet_valid && s.inlet_c == 10);                       // 2133
-    CHECK(s.outdoor_ambient_valid && s.outdoor_ambient_c == 15);   // 2134
-    CHECK(s.indoor_coil_valid && s.indoor_coil_c == 11);           // 2135
-    CHECK(s.outdoor_coil_valid && s.outdoor_coil_c == 11);         // 2136
-    CHECK(s.suction_valid && s.suction_c == 15);                   // 2137
-    CHECK(s.discharge_valid && s.discharge_c == 14);               // 2138
-    CHECK(s.compressor_freq_valid && s.compressor_freq == 0);      // 2141
+    // Telemetry window (@0..@49).
+    CHECK(s.cooling_setpoint_valid && s.cooling_setpoint == 10);   // @0 = 0x0a
+    CHECK(s.heating_setpoint_valid && s.heating_setpoint == 40);   // @1 = 0x28
+    CHECK(s.hot_water_setpoint_valid && s.hot_water_setpoint == 50); // @2 = 0x32
+    CHECK(s.working_mode_valid && s.working_mode == MaconWorkingMode::HotWater); // @3 = 5
+    CHECK(s.ac_voltage_valid && s.ac_voltage == 230);              // @49 = 230 (x1)
+    CHECK(s.primary_eev_valid && s.primary_eev == 190);            // @47 = 19 (x10 => steps)
+    CHECK(s.ipm_valid && s.ipm_c == 12);                           // @20
+    CHECK(s.realtime_power_valid && s.realtime_power_w == 0);      // @21
+    CHECK(s.outlet_valid && s.outlet_c == 10);                     // @39
+    CHECK(s.inlet_valid && s.inlet_c == 10);                       // @40
+    CHECK(s.outdoor_ambient_valid && s.outdoor_ambient_c == 15);   // @41
+    CHECK(s.indoor_coil_valid && s.indoor_coil_c == 11);           // @42
+    CHECK(s.outdoor_coil_valid && s.outdoor_coil_c == 11);         // @43
+    CHECK(s.suction_valid && s.suction_c == 15);                   // @44
+    CHECK(s.discharge_valid && s.discharge_c == 14);               // @45
+    CHECK(s.compressor_freq_valid && s.compressor_freq == 0);      // @48
     // Holding window: refrigerant pressures (no transducers fitted) + aux EEV.
-    CHECK(s.high_pressure_valid && s.high_pressure == -6);         // 2013 = 0xfa
-    CHECK(s.low_pressure_valid && s.low_pressure == 3);            // 2014
-    CHECK(s.aux_eev_valid && s.aux_eev == 0);                      // 2048
-    CHECK(!s.compressor_on && !s.pump_on && !s.defrost_on && !s.fan_on); // 2129/2130 = 0
-    // Holding window (reg 2000..2057).
-    CHECK(s.ac_current_valid && s.ac_current == 0);                // 2000
-    CHECK(s.dc_voltage_valid && s.dc_voltage == 320);              // 2001 = 0x20 (x10)
-    CHECK(s.fan_level == 0);                                       // 2003
-    CHECK(s.water_tank_valid && s.water_tank_c == 20);             // 2008 = 0x14
-    CHECK(s.hot_water_ceiling_valid && s.hot_water_ceiling == 50); // 2012 = 0x32
-    CHECK(s.mode_valid && s.mode == MaconMode::Heating);           // 2049 = 0
-    CHECK(s.running);                                              // 2007 bit5
+    CHECK(s.high_pressure_valid && s.high_pressure == -6);         // @63 = 0xfa
+    CHECK(s.low_pressure_valid && s.low_pressure == 3);            // @64
+    CHECK(s.aux_eev_valid && s.aux_eev == 0);                      // @98
+    CHECK(!s.compressor_on && !s.pump_on && !s.defrost_on && !s.fan_on); // @36/@37 = 0
+    // Holding window (@50..@107).
+    CHECK(s.ac_current_valid && s.ac_current == 0);                // @50
+    CHECK(s.dc_voltage_valid && s.dc_voltage == 320);              // @51 = 0x20 (x10)
+    CHECK(s.fan_level == 0);                                       // @53
+    CHECK(s.water_tank_valid && s.water_tank_c == 20);             // @58 = 0x14
+    CHECK(s.hot_water_ceiling_valid && s.hot_water_ceiling == 50); // @62 = 0x32
+    CHECK(s.mode_valid && s.mode == MaconMode::Heating);           // @99 = 0
+    CHECK(s.running);                                              // @57 bit5
     // Faults: none, and the RUN bit is not reported as one.
     CHECK(s.faults_valid);
     CHECK(!macon_has_fault(s.fault_run, s.fault_ee, s.fault_comp, s.fault_elec, s.fault_ref));
@@ -165,20 +165,20 @@ static void test_fault_table_pinned() {
     struct Row { uint16_t reg; uint8_t bit; const char *code; FaultSeverity sev; };
     using S = FaultSeverity;
     const Row expected[] = {
-        {2007,0,"P15",S::WARNING}, {2007,1,"P16",S::WARNING}, {2007,2,"FE",S::FAULT},
-        {2007,3,"FF",S::FAULT},    {2007,5,"RUN",S::INFO},
-        {2125,0,"E28",S::FAULT},   {2125,1,"E19",S::FAULT},   {2125,2,"E18",S::FAULT},
-        {2125,3,"E13",S::FAULT},   {2125,4,"E03",S::FAULT},   {2125,5,"E28",S::FAULT},
-        {2125,6,"E27",S::CRITICAL},{2125,7,"E21",S::CRITICAL},
-        {2126,0,"r02",S::FAULT},   {2126,1,"E26",S::CRITICAL},{2126,2,"r01",S::CRITICAL},
-        {2126,4,"E01",S::FAULT},   {2126,5,"E09",S::FAULT},   {2126,6,"E05",S::FAULT},
-        {2126,7,"E22",S::FAULT},
-        {2127,0,"FA",S::FAULT},    {2127,1,"P19",S::FAULT},   {2127,2,"r06",S::FAULT},   {2127,3,"r10",S::FAULT},
-        {2127,4,"r11",S::FAULT},   {2127,5,"r05",S::FAULT},   {2127,6,"P11",S::FAULT},
-        {2127,7,"P02",S::CRITICAL},
-        {2128,0,"P06",S::CRITICAL},{2128,1,"P27",S::FAULT},   {2128,2,"PC",S::WARNING},
-        {2128,3,"P10",S::FAULT},   {2128,4,"P30",S::WARNING}, {2128,5,"E05",S::FAULT},
-        {2128,7,"P01",S::CRITICAL},
+        {57,0,"P15",S::WARNING}, {57,1,"P16",S::WARNING}, {57,2,"FE",S::FAULT},
+        {57,3,"FF",S::FAULT},    {57,5,"RUN",S::INFO},
+        {32,0,"E28",S::FAULT},   {32,1,"E19",S::FAULT},   {32,2,"E18",S::FAULT},
+        {32,3,"E13",S::FAULT},   {32,4,"E03",S::FAULT},   {32,5,"E28",S::FAULT},
+        {32,6,"E27",S::CRITICAL},{32,7,"E21",S::CRITICAL},
+        {33,0,"r02",S::FAULT},   {33,1,"E26",S::CRITICAL},{33,2,"r01",S::CRITICAL},
+        {33,4,"E01",S::FAULT},   {33,5,"E09",S::FAULT},   {33,6,"E05",S::FAULT},
+        {33,7,"E22",S::FAULT},
+        {34,0,"FA",S::FAULT},    {34,1,"P19",S::FAULT},   {34,2,"r06",S::FAULT},   {34,3,"r10",S::FAULT},
+        {34,4,"r11",S::FAULT},   {34,5,"r05",S::FAULT},   {34,6,"P11",S::FAULT},
+        {34,7,"P02",S::CRITICAL},
+        {35,0,"P06",S::CRITICAL},{35,1,"P27",S::FAULT},   {35,2,"PC",S::WARNING},
+        {35,3,"P10",S::FAULT},   {35,4,"P30",S::WARNING}, {35,5,"E05",S::FAULT},
+        {35,7,"P01",S::CRITICAL},
     };
     const size_t n = sizeof(expected) / sizeof(expected[0]);
     CHECK(MACON_FAULT_BITS_COUNT == n);

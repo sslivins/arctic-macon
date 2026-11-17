@@ -89,7 +89,7 @@ size_t MaconListener::drain(uint32_t now_ms, MaconFeedResult &result) {
             if (pf.dir == tuya_codec::DIR_RESPONSE && pf.window &&
                 pf.payload_len > pf.window->prefix_len) {
                 const MaconCoverage cov = image_.ingest_bytes(
-                    pf.window->reg_base,
+                    static_cast<uint16_t>(pf.window->field_a + pf.window->prefix_len),
                     pf.payload + pf.window->prefix_len,
                     pf.payload_len - pf.window->prefix_len);
                 result.any_response = true;

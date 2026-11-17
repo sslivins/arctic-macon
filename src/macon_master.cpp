@@ -109,7 +109,7 @@ MaconMaster::PollOutcome MaconMaster::poll_window_once(const tuya_codec::RegWind
                     if (pf.window && pf.payload &&
                         pf.payload_len > pf.window->prefix_len) {
                         sink_.on_window(
-                            pf.window->reg_base,
+                            static_cast<uint16_t>(pf.window->field_a + pf.window->prefix_len),
                             pf.payload + pf.window->prefix_len,
                             pf.payload_len - pf.window->prefix_len);
                     }
@@ -247,9 +247,9 @@ MaconResult MaconMaster::write_advanced(const AdvWritePlan &plan)
 // ---------------------------------------------------------------------------
 // MaconImageSink
 // ---------------------------------------------------------------------------
-void MaconImageSink::on_window(uint16_t reg_base, const uint8_t *data, size_t len)
+void MaconImageSink::on_window(uint16_t offset, const uint8_t *data, size_t len)
 {
-    const MaconCoverage cov = image_.ingest_bytes(reg_base, data, len);
+    const MaconCoverage cov = image_.ingest_bytes(offset, data, len);
     coverage_.status_updated    |= cov.status_updated;
     coverage_.telemetry_updated |= cov.telemetry_updated;
     any_ = true;

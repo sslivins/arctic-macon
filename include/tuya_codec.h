@@ -37,23 +37,26 @@
 //
 // Two register windows are observed in rotation:
 //
-//   addr=0,  count=50 -> "telemetry" (regs 2093..2142):
-//                        byte 0 = reg 2093 = COOLING SETPOINT (whole °C).
+//   addr=0,  count=50 -> "telemetry" (offsets @0..@49):
+//                        @0 = COOLING SETPOINT (whole °C).
 //                                 Confirmed live 2026-07-08: flipped 0x0C (12)
 //                                 -> 0x18 (24) the instant the controller's
 //                                 setpoint dial moved 12->24 °C.
-//                        byte 1 = reg 2094 (0x28=40; likely heating setpoint,
+//                        @1 (0x28=40; likely heating setpoint,
 //                                 UNCONFIRMED).
-//                        byte 2 = reg 2095 (0x32=50; mirrors the hot-water
+//                        @2 (0x32=50; mirrors the hot-water
 //                                 setpoint, UNCONFIRMED).
-//                        bytes 3..6 = regs 2096..2099 (not yet decoded).
-//                        byte 7 = reg 2100, byte 8 = reg 2101, ... byte 49 =
-//                                 reg 2142.
+//                        @3..@6 (not yet decoded).
+//                        ... through @49.
 //                        (Formerly bytes 0..6 were skipped as a "static
 //                        prefix"; byte 0 is NOT static — it is the setpoint.)
 //
-//   addr=50, count=58 -> "holding" (regs 2000..2057):
-//                        no prefix; byte 0 = reg 2000, byte 1 = reg 2001, ...
+//   addr=50, count=58 -> "holding" (offsets @50..@107):
+//                        no prefix; response byte k = @(50+k).
+//
+// Register addresses throughout this library ARE these byte offsets ("@N"):
+// response byte k of a window starting at addr A is register @(A+k), and a
+// single-register fc=0x06 write to @N puts N in the wire addr field.
 //
 // Each Arctic "register" on the wire is 1 byte (NOT 2 bytes like classic
 // Modbus). Per-register scaling and signedness are defined elsewhere
@@ -83,7 +86,7 @@
 //
 // Conclusion: safe to ignore. The codec treats it as a skipped inter-frame
 // byte. One open (non-blocking) question: whether 0x14 is a fixed tag or
-// coincidentally echoes holding reg 2051 (P43 "3-Way Valve Time" = 20s). That
+// coincidentally echoes holding register @51 (P43 "3-Way Valve Time" = 20s). That
 // needs a physical P43 change at the controller to confirm; not worth the
 // effort unless the trailer value is ever seen to vary.
 // ---------------------------------------------------------------------------
@@ -110,20 +113,19 @@ constexpr size_t  MIN_FRAME_LEN = HDR_LEN + CHK_LEN;   // 9 (request)
 constexpr size_t  MAX_FRAME_LEN = 256;
 
 // ---------------------------------------------------------------------------
-// Register windows: maps the wire's (addr,count) pair to an Arctic register
-// base address and a byte prefix to skip.
+// Register windows: the wire's (addr,count) pairs the codec maps, plus a byte
+// prefix to skip. Register data byte k is the register at offset field_a + k.
 // ---------------------------------------------------------------------------
 
 struct RegWindow {
     uint16_t field_a;     // wire `addr` field
     uint16_t field_b;     // wire `count` field
-    uint16_t reg_base;    // first Arctic register number this window carries
     uint8_t  prefix_len;  // payload bytes to skip before register data starts
 };
 
 constexpr RegWindow KNOWN_WINDOWS[] = {
-    { 0,  50, 2093, 0 },  // telemetry (byte0 = reg2093 cooling setpoint)
-    { 50, 58, 2000, 0 },  // holding regs
+    { 0,  50, 0 },  // telemetry @0..@49 (@0 = cooling setpoint)
+    { 50, 58, 0 },  // holding   @50..@107
 };
 constexpr size_t KNOWN_WINDOWS_COUNT = sizeof(KNOWN_WINDOWS) / sizeof(KNOWN_WINDOWS[0]);
 

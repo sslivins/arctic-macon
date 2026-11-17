@@ -48,10 +48,10 @@ class MaconWindowSink {
 public:
     virtual ~MaconWindowSink() = default;
 
-    /// A telemetry/holding read response was decoded. `reg_base` is the first
-    /// absolute Arctic register the window carries; `data`/`len` are the raw
-    /// register bytes with the window prefix already stripped.
-    virtual void on_window(uint16_t reg_base, const uint8_t *data, size_t len) = 0;
+    /// A telemetry/holding read response was decoded. `offset` is the wire
+    /// byte offset (@N) of data[0]; `data`/`len` are the raw register bytes
+    /// with the window prefix already stripped (data[k] is @(offset+k)).
+    virtual void on_window(uint16_t offset, const uint8_t *data, size_t len) = 0;
 
     /// Raw observed window (wire addr/count + full payload) for the consumer's
     /// observed-register bookkeeping/diagnostics. Called once per matched
@@ -95,10 +95,10 @@ public:
     /// bus access with its own mutex.
     bool poll_window(const tuya_codec::RegWindow &win);
 
-    /// Poll the OEM holding window (regs 2000.. — electrical/status/mode).
+    /// Poll the OEM holding window (@50..@107 — electrical/status/mode).
     bool poll_holding() { return poll_window(tuya_codec::KNOWN_WINDOWS[1]); }
 
-    /// Poll the OEM telemetry window (regs 2093.. — setpoints/temps/EEV).
+    /// Poll the OEM telemetry window (@0..@49 — setpoints/temps/EEV).
     bool poll_telemetry() { return poll_window(tuya_codec::KNOWN_WINDOWS[0]); }
 
     /// Outcome counters accumulated by poll_window(). Same threading rules as
@@ -156,7 +156,7 @@ public:
     MaconImageSink(MaconImage &image, MaconObservedCatalog &catalog)
         : image_(image), catalog_(catalog) {}
 
-    void on_window(uint16_t reg_base, const uint8_t *data, size_t len) override;
+    void on_window(uint16_t offset, const uint8_t *data, size_t len) override;
     void on_observed(uint16_t field_a, uint16_t field_b,
                      const uint8_t *payload, size_t payload_len) override;
 

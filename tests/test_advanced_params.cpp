@@ -21,38 +21,38 @@ static int g_failures = 0;
 
 int main() {
     // --- register <-> AP mapping (change-and-capture verified only) --------
-    // Verified regs are looked up from the table (NO 2000+ap formula).
-    CHECK(advanced_register_address(20) == 2019);
-    CHECK(advanced_register_address(13) == 2012);
-    CHECK(advanced_register_address(48) == 2060);
+    // Verified regs are looked up from the table (no ap->offset formula).
+    CHECK(advanced_register_address(20) == 69);
+    CHECK(advanced_register_address(13) == 62);
+    CHECK(advanced_register_address(48) == 110);
     CHECK(advanced_param_reg_known(20));
     CHECK(advanced_param_reg_known(13));
     // AP24-47 tuning block is now write-verified (irregular/permuted mapping).
-    CHECK(advanced_register_address(24) == 2023);
-    CHECK(advanced_register_address(34) == 2035);   // swapped with AP35
-    CHECK(advanced_register_address(35) == 2034);   // swapped with AP34
-    CHECK(advanced_register_address(31) == 2029);   // permuted
-    CHECK(advanced_register_address(40) == 2040);
-    CHECK(advanced_register_address(38) == 2038);
+    CHECK(advanced_register_address(24) == 73);
+    CHECK(advanced_register_address(34) == 85);   // swapped with AP35
+    CHECK(advanced_register_address(35) == 84);   // swapped with AP34
+    CHECK(advanced_register_address(31) == 79);   // permuted
+    CHECK(advanced_register_address(40) == 90);
+    CHECK(advanced_register_address(38) == 88);
     CHECK(advanced_param_reg_known(40));
     CHECK(advanced_param_reg_known(38));
     // AP36/37 are doc-omitted and absent from the table entirely.
     CHECK(advanced_param_lookup(36) == nullptr);
     CHECK(advanced_param_lookup(37) == nullptr);
     // Reverse lookup finds params by their confirmed register.
-    CHECK(advanced_param_for_register(2019) != nullptr);
-    CHECK(advanced_param_for_register(2019)->ap == 20);
-    CHECK(advanced_param_for_register(2012)->ap == 13);
-    CHECK(register_is_advanced_param(2019));
-    CHECK(advanced_param_for_register(2035)->ap == 34);   // permuted reverse map
-    CHECK(advanced_param_for_register(2034)->ap == 35);
+    CHECK(advanced_param_for_register(69) != nullptr);
+    CHECK(advanced_param_for_register(69)->ap == 20);
+    CHECK(advanced_param_for_register(62)->ap == 13);
+    CHECK(register_is_advanced_param(69));
+    CHECK(advanced_param_for_register(85)->ap == 34);   // permuted reverse map
+    CHECK(advanced_param_for_register(84)->ap == 35);
     // Non-param registers are not advanced params.
-    CHECK(advanced_param_for_register(2000) == nullptr);
-    CHECK(!register_is_advanced_param(2000));
-    CHECK(advanced_param_for_register(ADV_REG_UNKNOWN) == nullptr);  // 0 sentinel
+    CHECK(advanced_param_for_register(50) == nullptr);
+    CHECK(!register_is_advanced_param(50));
+    CHECK(advanced_param_for_register(ADV_REG_UNKNOWN) == nullptr);  // 0xFFFF sentinel
 
     // --- verified + writable params: writes reach OK -----------------------
-    // AP13 max hot-water setpoint (reg2012), range 20..55.
+    // AP13 max hot-water setpoint (@62), range 20..55.
     CHECK(validate_advanced_write(13, 50) == AdvWriteResult::OK);
     CHECK(validate_advanced_write(13, 20) == AdvWriteResult::OK);
     CHECK(validate_advanced_write(13, 56) == AdvWriteResult::OUT_OF_RANGE);
@@ -74,7 +74,7 @@ int main() {
     {
         AdvWritePlan plan;
         CHECK(advanced_prepare_display_write(28, 30, &plan) == AdvWriteResult::OK);
-        CHECK(advanced_register_address(plan.ap()) == 2027);
+        CHECK(advanced_register_address(plan.ap()) == 77);
         CHECK(plan.raw() == 3);
         CHECK(advanced_prepare_display_write(28, 35, &plan) ==
               AdvWriteResult::OUT_OF_RANGE);
@@ -89,7 +89,7 @@ int main() {
 
     // --- read-only param (AP41): reg known but writes refused --------------
     CHECK(advanced_param_reg_known(41));
-    CHECK(advanced_register_address(41) == 2041);
+    CHECK(advanced_register_address(41) == 91);
     CHECK(advanced_param_lookup(41)->read_only);
     CHECK(validate_advanced_write(41, 12) == AdvWriteResult::READ_ONLY);
     CHECK(advanced_prepare_write(41, 12, nullptr) == AdvWriteResult::READ_ONLY);
@@ -98,14 +98,14 @@ int main() {
 
     // --- trigger param (AP47): momentary command, writable -----------------
     CHECK(advanced_param_reg_known(47));
-    CHECK(advanced_register_address(47) == 2047);
+    CHECK(advanced_register_address(47) == 97);
     CHECK(advanced_param_lookup(47)->is_trigger);
     CHECK(!advanced_param_lookup(47)->read_only);
     CHECK(validate_advanced_write(47, 1) == AdvWriteResult::OK);
     {
         AdvWritePlan tplan;
         CHECK(advanced_prepare_write(47, 1, &tplan) == AdvWriteResult::OK);
-        CHECK(advanced_register_address(tplan.ap()) == 2047);
+        CHECK(advanced_register_address(tplan.ap()) == 97);
         CHECK(tplan.raw() == 1);
     }
     // Ordinary config params carry neither flag.
@@ -114,7 +114,7 @@ int main() {
 
     // --- manual block: register known but write-locked (safety) ------------
     CHECK(advanced_param_reg_known(48));
-    CHECK(advanced_register_address(48) == 2060);
+    CHECK(advanced_register_address(48) == 110);
     CHECK(validate_advanced_write(48, 1) == AdvWriteResult::NEEDS_SIM_CONFIRM);
     CHECK(validate_advanced_write(49, 30) == AdvWriteResult::NEEDS_SIM_CONFIRM);
     // Out-of-range still reported before the lock.
@@ -135,7 +135,7 @@ int main() {
     CHECK(std::strcmp(advanced_param_lookup(47)->detail_msg_id, "ap.water_system_cleaning.detail") == 0);
 
     // --- enum (K-ratio) params: verified + writable ------------------------
-    // AP14 valid readings {0,1,2,4,8,12,16,20}, reg2111 confirmed.
+    // AP14 valid readings {0,1,2,4,8,12,16,20}, @18 confirmed.
     CHECK(validate_advanced_write(14, 8) == AdvWriteResult::OK);
     CHECK(validate_advanced_write(14, 3) == AdvWriteResult::NOT_IN_ENUM);
     CHECK(validate_advanced_write(14, 20) == AdvWriteResult::OK);
@@ -224,10 +224,10 @@ int main() {
         CHECK(advanced_enum_option_index_for_wire(200, 0) == -1);
 
         // id-based write plan reproduces the EXACT wire value of the selected
-        // option and runs the standard guardrail. AP20 id 4 == wire 8 -> reg2019.
+        // option and runs the standard guardrail. AP20 id 4 == wire 8 -> @69.
         AdvWritePlan plan;
         CHECK(advanced_prepare_write_option(20, 4, &plan) == AdvWriteResult::OK);
-        CHECK(advanced_register_address(plan.ap()) == 2019);
+        CHECK(advanced_register_address(plan.ap()) == 69);
         CHECK(plan.raw() == 8);
         // Out-of-range id, non-enum params, and unknown params are all rejected.
         CHECK(advanced_prepare_write_option(20, advanced_enum_option_count(20), nullptr)
@@ -240,18 +240,18 @@ int main() {
     {
         AdvWritePlan plan;
         CHECK(advanced_prepare_write(20, 8, &plan) == AdvWriteResult::OK);
-        CHECK(advanced_register_address(plan.ap()) == 2019);
+        CHECK(advanced_register_address(plan.ap()) == 69);
         CHECK(plan.raw() == 8);
         // A verified negative param encodes as 8-bit two's-complement in the
         // low byte (high byte 0): -5 -> 0x00FB, NOT 0xFFFB.
         CHECK(advanced_prepare_write(40, -5, &plan) == AdvWriteResult::OK);
-        CHECK(advanced_register_address(plan.ap()) == 2040);
+        CHECK(advanced_register_address(plan.ap()) == 90);
         CHECK(plan.raw() == 0x00FB);
         CHECK((plan.raw() & 0xFF00) == 0);
         // Round-trip: decoding the wire value recovers the engineering value.
         CHECK(advanced_decode_raw(40, plan.raw()) == -5);
-        CHECK(advanced_decode_raw(40, 0x00FF) == -1);   // reg2040 live: 255 -> -1
-        CHECK(advanced_decode_raw(38, 0x00E2) == -30);  // reg2038 live: 226 -> -30
+        CHECK(advanced_decode_raw(40, 0x00FF) == -1);   // @90 live: 255 -> -1
+        CHECK(advanced_decode_raw(38, 0x00E2) == -30);  // @88 live: 226 -> -30
         // Unsigned params are not sign-extended.
         CHECK(advanced_decode_raw(20, 8) == 8);
         // A refused write must NOT populate the plan (leave a plan the caller
@@ -298,7 +298,7 @@ int main() {
         CHECK(img.apply_advanced(plan));
         CHECK(img.read_advanced(20, &raw) && raw == 8);
         uint16_t reg = 0;
-        CHECK(img.get_register(2019, &reg) && reg == 8);  // landed on AP20's register
+        CHECK(img.get_register(69, &reg) && reg == 8);  // landed on AP20's register
         // Signed round trip.
         CHECK(advanced_prepare_write(40, -5, &plan) == AdvWriteResult::OK);
         CHECK(img.apply_advanced(plan));
@@ -388,7 +388,7 @@ int main() {
         AdvWritePlan plan{};
         CHECK(advanced_sign_join(40, true, 1, &v) == AdvWriteResult::OK);
         CHECK(advanced_prepare_display_write(40, v, &plan) == AdvWriteResult::OK);
-        CHECK(advanced_register_address(plan.ap()) == 2040 && plan.raw() == 0x00FF);
+        CHECK(advanced_register_address(plan.ap()) == 90 && plan.raw() == 0x00FF);
     }
 
     // --- result names ------------------------------------------------------

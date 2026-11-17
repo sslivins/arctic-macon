@@ -93,17 +93,17 @@ public:
     // matching (non-exception) ACK is received. `celsius` is a whole-°C value
     // (clamped to the signed-byte wire range).
 
-    /// Cooling setpoint — wire addr 0x0000 (reg2093). Confirmed live.
+    /// Cooling setpoint — wire addr 0x0000 (@0). Confirmed live.
     MaconResult set_cooling_setpoint(int celsius);
 
-    /// Heating setpoint (working modes 1 and 2) — wire addr 0x0001 (reg2094).
+    /// Heating setpoint (working modes 1 and 2) — wire addr 0x0001 (@1).
     /// Confirmed on the bench against the OEM wired controller.
     MaconResult set_heating_setpoint(int celsius);
 
-    /// Hot-water setpoint — wire addr 0x0002 (reg2095). Confirmed live.
+    /// Hot-water setpoint — wire addr 0x0002 (@2). Confirmed live.
     MaconResult set_hot_water_setpoint(int celsius);
 
-    /// Selected working mode — wire addr 0x0003 (reg2096), same fc=0x06
+    /// Selected working mode — wire addr 0x0003 (@3), same fc=0x06
     /// single-byte write as the setpoints. Only working_mode_selectable()
     /// modes (Cooling, Heating, HotWater, HotWaterCooling) are sent; anything
     /// else returns UnsupportedRegister without transmitting.
@@ -111,9 +111,9 @@ public:
 
     /// Write one byte to a verified Macon register and wait for its ACK.
     ///
-    /// The absolute register address is translated through KNOWN_WINDOWS so
-    /// consumers do not duplicate the holding/telemetry wire-offset mapping.
-    /// Returns UnsupportedRegister when the address is outside known windows.
+    /// The register address is the wire byte offset (@N) and goes on the wire
+    /// unchanged. Returns UnsupportedRegister (nothing sent) when the offset
+    /// is outside the known read windows (@0..@107).
     MaconResult write_register(uint16_t register_address, uint8_t value);
 
     // --- setpoint reads (controller -> unit) -------------------------------
@@ -121,13 +121,13 @@ public:
     // count 50) and extracts the setpoint byte. Returns Ok and writes
     // `*out_celsius` on success.
 
-    /// Cooling setpoint read-back — reg2093 (telemetry byte 0). Confirmed.
+    /// Cooling setpoint read-back — @0 (telemetry byte 0). Confirmed.
     MaconResult read_cooling_setpoint(int *out_celsius);
 
-    /// Hot-water setpoint read-back — reg2095 (telemetry byte 2). Confirmed.
+    /// Hot-water setpoint read-back — @2 (telemetry byte 2). Confirmed.
     MaconResult read_hot_water_setpoint(int *out_celsius);
 
-    /// Heating setpoint read-back — reg2094 (telemetry byte 1).
+    /// Heating setpoint read-back — @1 (telemetry byte 1).
     MaconResult read_heating_setpoint(int *out_celsius);
 
 private:
