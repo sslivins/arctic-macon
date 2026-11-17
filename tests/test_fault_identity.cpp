@@ -111,6 +111,26 @@ int main() {
     CHECK(macon_fault_bit_for_site(0) == nullptr);
     CHECK(macon_fault_bit_for_site(0xFFFF) == nullptr);
 
+    // --- persisted site ids are frozen --------------------------------------
+    // Consumers store site ids in flash event logs. These exact values were
+    // produced by every release before arctic-macon#45 and must never change,
+    // whatever happens to register addressing.
+    CHECK(macon_fault_site_id(57, 0) == 16056);   // P15
+    CHECK(macon_fault_site_id(57, 3) == 16059);   // FF
+    CHECK(macon_fault_site_id(32, 0) == 17000);   // E28 outdoor
+    CHECK(macon_fault_site_id(32, 5) == 17005);   // E28 indoor
+    CHECK(macon_fault_site_id(33, 6) == 17014);   // E05 outdoor coil
+    CHECK(macon_fault_site_id(34, 7) == 17023);   // P02
+    CHECK(macon_fault_site_id(35, 7) == 17031);   // P01
+    {
+        const MaconFaultBit *p02 = macon_fault_bit_for_site(17023);
+        CHECK(p02 && std::strcmp(p02->code, "P02") == 0);
+        const MaconFaultBit *p15 = macon_fault_bit_for_site(16056);
+        CHECK(p15 && std::strcmp(p15->code, "P15") == 0);
+        const MaconFaultBit *e05 = macon_fault_bit_for_site(17029);  // @35:5
+        CHECK(e05 && std::strcmp(e05->code, "E05") == 0 && e05->reg == 35);
+    }
+
     // --- FA: DC fan motor (@34 bit0), found on the OEM app 2026-09-26 ----
     CHECK(macon_fault_id_from_code("FA") == MaconFaultId::DcFanMotor);
     CHECK(macon_fault_site_id(34, 0) != 0);

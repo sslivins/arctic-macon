@@ -27,8 +27,9 @@ namespace arctic {
 // Bumped whenever the named-field / catalog API changes incompatibly.
 //   2: register addresses are wire byte offsets (@N) instead of the legacy
 //      Modbus 20xx numbering (arctic-macon#45). Address-bearing values
-//      (macon_field_address, fault site ids, advanced_register_address) and
-//      both fingerprints changed; on-wire behaviour is unchanged.
+//      (macon_field_address, advanced_register_address) and both
+//      fingerprints changed; on-wire behaviour is unchanged. Fault site ids
+//      are persisted identities and did NOT change.
 constexpr uint16_t MACON_SEMANTIC_API_VERSION = 2;
 
 enum class MaconFieldKind : uint8_t {

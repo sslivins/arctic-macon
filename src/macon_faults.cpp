@@ -142,10 +142,34 @@ static const MaconFaultBit *first_bit_for_id(MaconFaultId id)
     return nullptr;
 }
 
+// Frozen persisted fault-site identity; values are historical and must never
+// change; unrelated to wire addressing. Site ids are written to consumers'
+// persistent event logs, so a site id is (group << 3) | bit where `group` is a
+// fixed opaque token per fault byte, NOT the byte's address.
+static constexpr uint16_t kSiteGroupRunState    = 2007;  // fault byte @57
+static constexpr uint16_t kSiteGroupSensorComm  = 2125;  // fault byte @32
+static constexpr uint16_t kSiteGroupCompressor  = 2126;  // fault byte @33
+static constexpr uint16_t kSiteGroupElectrical  = 2127;  // fault byte @34
+static constexpr uint16_t kSiteGroupRefrigerant = 2128;  // fault byte @35
+
+static uint16_t site_group_for_reg(uint16_t reg)
+{
+    switch (reg) {
+    case 57: return kSiteGroupRunState;
+    case 32: return kSiteGroupSensorComm;
+    case 33: return kSiteGroupCompressor;
+    case 34: return kSiteGroupElectrical;
+    case 35: return kSiteGroupRefrigerant;
+    default: return 0;
+    }
+}
+
 MaconFaultSiteId macon_fault_site_id(uint16_t reg, uint8_t bit)
 {
     if (!macon_fault_bit(reg, bit)) return 0;
-    return static_cast<MaconFaultSiteId>((reg << 3) | (bit & 0x7));
+    const uint16_t group = site_group_for_reg(reg);
+    if (group == 0) return 0;
+    return static_cast<MaconFaultSiteId>((group << 3) | (bit & 0x7));
 }
 
 const MaconFaultBit *macon_fault_bit_for_site(MaconFaultSiteId site)

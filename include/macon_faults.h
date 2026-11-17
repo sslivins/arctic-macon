@@ -101,6 +101,9 @@ enum class MaconFaultId : uint16_t {
 // comparable/hashable token for history and transition detection only; do NOT
 // derive a register or bit from it. Distinct sites of the same code (e.g. the
 // two "E28" bits) have distinct site ids but the same MaconFaultId.
+// Site ids are safe to persist (e.g. in an event log): their values are frozen
+// and independent of register addressing, so they never change across library
+// versions.
 using MaconFaultSiteId = uint16_t;
 
 // One decodable bit in one of the five Macon fault-bitfield registers.
