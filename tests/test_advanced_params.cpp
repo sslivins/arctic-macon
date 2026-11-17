@@ -2,6 +2,7 @@
 // Framework-free: prints failures and returns non-zero on any failure.
 
 #include "macon_advanced_params.h"
+#include "macon_image.h"
 
 #include <cstdio>
 #include <cstring>
@@ -71,10 +72,10 @@ int main() {
     CHECK(advanced_display_step(28) == 10);
     CHECK(std::strcmp(advanced_display_unit(28), "min") == 0);
     {
-        AdvWritePlan plan{0xFFFF, 0xFFFF};
+        AdvWritePlan plan;
         CHECK(advanced_prepare_display_write(28, 30, &plan) == AdvWriteResult::OK);
-        CHECK(plan.reg == 2027);
-        CHECK(plan.raw == 3);
+        CHECK(advanced_register_address(plan.ap()) == 2027);
+        CHECK(plan.raw() == 3);
         CHECK(advanced_prepare_display_write(28, 35, &plan) ==
               AdvWriteResult::OUT_OF_RANGE);
     }
@@ -102,10 +103,10 @@ int main() {
     CHECK(!advanced_param_lookup(47)->read_only);
     CHECK(validate_advanced_write(47, 1) == AdvWriteResult::OK);
     {
-        AdvWritePlan tplan{0xFFFF, 0xFFFF};
+        AdvWritePlan tplan;
         CHECK(advanced_prepare_write(47, 1, &tplan) == AdvWriteResult::OK);
-        CHECK(tplan.reg == 2047);
-        CHECK(tplan.raw == 1);
+        CHECK(advanced_register_address(tplan.ap()) == 2047);
+        CHECK(tplan.raw() == 1);
     }
     // Ordinary config params carry neither flag.
     CHECK(!advanced_param_lookup(24)->read_only);
@@ -224,10 +225,10 @@ int main() {
 
         // id-based write plan reproduces the EXACT wire value of the selected
         // option and runs the standard guardrail. AP20 id 4 == wire 8 -> reg2019.
-        AdvWritePlan plan{0xFFFF, 0xFFFF};
+        AdvWritePlan plan;
         CHECK(advanced_prepare_write_option(20, 4, &plan) == AdvWriteResult::OK);
-        CHECK(plan.reg == 2019);
-        CHECK(plan.raw == 8);
+        CHECK(advanced_register_address(plan.ap()) == 2019);
+        CHECK(plan.raw() == 8);
         // Out-of-range id, non-enum params, and unknown params are all rejected.
         CHECK(advanced_prepare_write_option(20, advanced_enum_option_count(20), nullptr)
               == AdvWriteResult::NOT_IN_ENUM);
@@ -237,18 +238,18 @@ int main() {
 
     // --- write-plan builder ------------------------------------------------
     {
-        AdvWritePlan plan{0xFFFF, 0xFFFF};
+        AdvWritePlan plan;
         CHECK(advanced_prepare_write(20, 8, &plan) == AdvWriteResult::OK);
-        CHECK(plan.reg == 2019);
-        CHECK(plan.raw == 8);
+        CHECK(advanced_register_address(plan.ap()) == 2019);
+        CHECK(plan.raw() == 8);
         // A verified negative param encodes as 8-bit two's-complement in the
         // low byte (high byte 0): -5 -> 0x00FB, NOT 0xFFFB.
         CHECK(advanced_prepare_write(40, -5, &plan) == AdvWriteResult::OK);
-        CHECK(plan.reg == 2040);
-        CHECK(plan.raw == 0x00FB);
-        CHECK((plan.raw & 0xFF00) == 0);
+        CHECK(advanced_register_address(plan.ap()) == 2040);
+        CHECK(plan.raw() == 0x00FB);
+        CHECK((plan.raw() & 0xFF00) == 0);
         // Round-trip: decoding the wire value recovers the engineering value.
-        CHECK(advanced_decode_raw(40, plan.raw) == -5);
+        CHECK(advanced_decode_raw(40, plan.raw()) == -5);
         CHECK(advanced_decode_raw(40, 0x00FF) == -1);   // reg2040 live: 255 -> -1
         CHECK(advanced_decode_raw(38, 0x00E2) == -30);  // reg2038 live: 226 -> -30
         // Unsigned params are not sign-extended.
@@ -258,6 +259,55 @@ int main() {
         CHECK(advanced_prepare_write(48, 1, nullptr) == AdvWriteResult::NEEDS_SIM_CONFIRM);
         CHECK(advanced_prepare_write(41, 12, nullptr) == AdvWriteResult::READ_ONLY);
         CHECK(advanced_prepare_write(13, 100, nullptr) == AdvWriteResult::OUT_OF_RANGE);
+    }
+
+    // --- opaque plan validity ---------------------------------------------
+    {
+        AdvWritePlan plan;
+        CHECK(!plan.valid());                      // default plan never executable
+        CHECK(advanced_prepare_write(20, 8, &plan) == AdvWriteResult::OK);
+        CHECK(plan.valid() && plan.ap() == 20 && plan.raw() == 8);
+        // A refused prepare resets a previously-valid plan to invalid.
+        CHECK(advanced_prepare_write(48, 1, &plan) == AdvWriteResult::NEEDS_SIM_CONFIRM);
+        CHECK(!plan.valid());
+        CHECK(advanced_prepare_write(20, 8, &plan) == AdvWriteResult::OK);
+        CHECK(advanced_prepare_write(41, 12, &plan) == AdvWriteResult::READ_ONLY);
+        CHECK(!plan.valid());
+        CHECK(advanced_prepare_write(20, 8, &plan) == AdvWriteResult::OK);
+        CHECK(advanced_prepare_write(99, 0, &plan) == AdvWriteResult::UNKNOWN_PARAM);
+        CHECK(!plan.valid());
+    }
+
+    // --- address-free image access -----------------------------------------
+    {
+        MaconImage img;
+        uint16_t raw = 0xBEEF;
+        // Never-ingested register reads as unavailable, not a fabricated 0.
+        CHECK(!img.read_advanced(20, &raw));
+        CHECK(raw == 0xBEEF);
+        CHECK(!img.read_advanced(48, &raw));       // verified reg, not ingested
+        CHECK(!img.read_advanced(99, &raw));       // unknown AP
+        CHECK(!img.read_advanced(20, nullptr));
+        // Present zero is a real value.
+        CHECK(img.set_register(advanced_register_address(20), 0));
+        CHECK(img.read_advanced(20, &raw) && raw == 0);
+
+        AdvWritePlan plan;
+        CHECK(!img.apply_advanced(plan));          // invalid plan rejected
+        CHECK(advanced_prepare_write(20, 8, &plan) == AdvWriteResult::OK);
+        CHECK(img.apply_advanced(plan));
+        CHECK(img.read_advanced(20, &raw) && raw == 8);
+        uint16_t reg = 0;
+        CHECK(img.get_register(2019, &reg) && reg == 8);  // landed on AP20's register
+        // Signed round trip.
+        CHECK(advanced_prepare_write(40, -5, &plan) == AdvWriteResult::OK);
+        CHECK(img.apply_advanced(plan));
+        CHECK(img.read_advanced(40, &raw) && advanced_decode_raw(40, raw) == -5);
+        // Option-id round trip.
+        CHECK(advanced_prepare_write_option(20, 4, &plan) == AdvWriteResult::OK);
+        CHECK(img.apply_advanced(plan));
+        CHECK(img.read_advanced(20, &raw) &&
+              advanced_enum_option_index_for_wire(20, advanced_decode_raw(20, raw)) == 4);
     }
 
     // --- unknown parameter -------------------------------------------------
@@ -338,7 +388,7 @@ int main() {
         AdvWritePlan plan{};
         CHECK(advanced_sign_join(40, true, 1, &v) == AdvWriteResult::OK);
         CHECK(advanced_prepare_display_write(40, v, &plan) == AdvWriteResult::OK);
-        CHECK(plan.reg == 2040 && plan.raw == 0x00FF);
+        CHECK(advanced_register_address(plan.ap()) == 2040 && plan.raw() == 0x00FF);
     }
 
     // --- result names ------------------------------------------------------

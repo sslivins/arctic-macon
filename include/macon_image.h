@@ -31,6 +31,8 @@
 
 namespace arctic {
 
+class AdvWritePlan;  // macon_advanced_params.h
+
 // Numeric / enum fields the consumer can set by meaning. Units match the
 // corresponding MaconState field (whole °C, volts, amps, watts, Hz, raw level);
 // the library applies the inverse wire scaling.
@@ -123,6 +125,17 @@ public:
     // exactly as the real unit reflects it. Returns false (image untouched) if
     // any byte falls outside a known window.
     bool apply_write(uint16_t wire_addr, const uint8_t *data, size_t len);
+
+    // --- advanced ("AP") technician parameters --------------------------------
+    // Address-free AP access: the image resolves the AP's verified register
+    // internally. read_advanced() returns the encoded value (decode with
+    // advanced_decode_raw) only when the AP is known, its register is verified
+    // and that register has actually been ingested/set; otherwise false and
+    // `*raw_out` is untouched. apply_advanced() stores a valid plan's value
+    // locally (no bus); false for an invalid plan or a value that doesn't fit
+    // the one-byte register.
+    bool read_advanced(uint8_t ap, uint16_t *raw_out) const;
+    bool apply_advanced(const AdvWritePlan &plan);
 
     // --- raw register debug passthrough -------------------------------------
     // Address-based poke/peek for a raw-register debug endpoint. The image owns

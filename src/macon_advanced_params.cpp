@@ -260,11 +260,13 @@ AdvWriteResult validate_advanced_write(uint8_t ap, int16_t value) {
 }
 
 AdvWriteResult advanced_prepare_write(uint8_t ap, int16_t value, AdvWritePlan *out) {
+    if (out) *out = AdvWritePlan{};
     AdvWriteResult r = validate_advanced_write(ap, value);
     if (r != AdvWriteResult::OK) return r;
     if (out) {
         const AdvancedParam *p = advanced_param_lookup(ap);
-        out->reg = p->reg;
+        out->ap_ = ap;
+        out->valid_ = true;
         // Signed AP params are stored as 8-bit two's-complement in the LOW BYTE
         // of the 16-bit register (high byte 0), verified on the live bus:
         // reg2040 (AP40=-1)=0x00FF, reg2038 (AP38=-30)=0x00E2, reg2029
@@ -272,9 +274,9 @@ AdvWriteResult advanced_prepare_write(uint8_t ap, int16_t value, AdvWritePlan *o
         // Every is_signed param is within -45..45, so one byte is sufficient.
         // Unsigned params (incl. 16-bit AP50) keep their full-width value.
         if (p->is_signed) {
-            out->raw = static_cast<uint16_t>(value & 0x00FF);
+            out->raw_ = static_cast<uint16_t>(value & 0x00FF);
         } else {
-            out->raw = static_cast<uint16_t>(value);
+            out->raw_ = static_cast<uint16_t>(value);
         }
     }
     return AdvWriteResult::OK;

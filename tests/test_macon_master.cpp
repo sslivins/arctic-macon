@@ -3,6 +3,7 @@
 // Framework-free: prints failures, returns non-zero.
 
 #include "macon_master.h"
+#include "macon_advanced_params.h"
 #include "macon_link.h"
 #include "tuya_codec.h"
 
@@ -266,6 +267,32 @@ int main() {
         t.queue(ack, an);
         MaconMaster m(t, clk, sink);
         CHECK(m.write_register(2013, 45) == MaconResult::Ok);
+    }
+
+    // ----------------------------------------------------------------------
+    // write_advanced: a valid plan sends exactly the frame for the AP's own
+    // register; an invalid plan touches nothing.
+    // ----------------------------------------------------------------------
+    {
+        AdvWritePlan plan;
+        CHECK(advanced_prepare_write(20, 8, &plan) == AdvWriteResult::OK);
+
+        FakeTransport ref_t, t;
+        FakeClock clk1, clk2;
+        RecordingSink s1, s2;
+        MaconMaster ref(ref_t, clk1, s1), m(t, clk2, s2);
+        CHECK(ref.write_register(advanced_register_address(20), 8) == MaconResult::NoResponse);
+        CHECK(m.write_advanced(plan) == MaconResult::NoResponse);
+        CHECK(!t.written.empty() && t.written == ref_t.written);
+
+        FakeTransport idle;
+        FakeClock clk3;
+        RecordingSink s3;
+        MaconMaster m2(idle, clk3, s3);
+        CHECK(m2.write_advanced(AdvWritePlan{}) == MaconResult::WriteFailed);
+        CHECK(advanced_prepare_write(48, 1, &plan) == AdvWriteResult::NEEDS_SIM_CONFIRM);
+        CHECK(m2.write_advanced(plan) == MaconResult::WriteFailed);  // locked -> invalid plan
+        CHECK(idle.written.empty() && idle.flush_count == 0);
     }
 
     // ----------------------------------------------------------------------
