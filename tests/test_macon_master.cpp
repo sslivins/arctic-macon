@@ -68,13 +68,13 @@ class RecordingSink : public MaconWindowSink {
 public:
     int window_calls = 0;
     int observed_calls = 0;
-    uint16_t last_reg_base = 0;
+    uint16_t last_offset = 0xFFFF;
     std::vector<uint8_t> last_window;
     uint16_t last_a = 0xFFFF, last_b = 0xFFFF;
 
-    void on_window(uint16_t reg_base, const uint8_t *data, size_t len) override {
+    void on_window(uint16_t offset, const uint8_t *data, size_t len) override {
         ++window_calls;
-        last_reg_base = reg_base;
+        last_offset = offset;
         last_window.assign(data, data + len);
     }
     void on_observed(uint16_t field_a, uint16_t field_b,
@@ -95,7 +95,7 @@ static size_t build_window_response(uint8_t *buf, size_t cap,
 int main() {
     // ----------------------------------------------------------------------
     // poll_telemetry: writes the telemetry read request and feeds the decoded
-    // window (reg_base 2093, 50 bytes) to the sink.
+    // window (offset @0, 50 bytes) to the sink.
     // ----------------------------------------------------------------------
     {
         FakeTransport t;
@@ -104,8 +104,8 @@ int main() {
 
         uint8_t payload[50];
         std::memset(payload, 0, sizeof(payload));
-        payload[0] = 12;  // reg2093
-        payload[2] = 38;  // reg2095
+        payload[0] = 12;  // @0
+        payload[2] = 38;  // @2
         uint8_t resp[80];
         size_t rn = build_window_response(resp, sizeof(resp), 0, 50, payload);
         // Prepend junk + trailing tag to exercise resync.
@@ -125,7 +125,7 @@ int main() {
 
         CHECK(sink.window_calls == 1);
         CHECK(sink.observed_calls == 1);
-        CHECK(sink.last_reg_base == 2093);
+        CHECK(sink.last_offset == 0);
         CHECK(sink.last_window.size() == 50);
         CHECK(sink.last_window[0] == 12);
         CHECK(sink.last_window[2] == 38);
@@ -134,7 +134,7 @@ int main() {
     }
 
     // ----------------------------------------------------------------------
-    // poll_holding: matches the holding window (addr 50, count 58 -> reg 2000).
+    // poll_holding: matches the holding window (addr 50, count 58 -> @50..@107).
     // ----------------------------------------------------------------------
     {
         FakeTransport t;
@@ -150,7 +150,7 @@ int main() {
 
         MaconMaster m(t, clk, sink);
         CHECK(m.poll_holding() == true);
-        CHECK(sink.last_reg_base == 2000);
+        CHECK(sink.last_offset == 50);
         CHECK(sink.last_window.size() == 58);
         CHECK(sink.last_window[5] == 0x7A);
         CHECK(sink.last_a == 50 && sink.last_b == 58);
@@ -256,7 +256,7 @@ int main() {
     }
 
     // ----------------------------------------------------------------------
-    // write_register delegates to MaconLink (holding reg2013 -> offset 63).
+    // write_register delegates to MaconLink (@63 goes on the wire as addr 63).
     // ----------------------------------------------------------------------
     {
         FakeTransport t;
@@ -266,7 +266,7 @@ int main() {
         size_t an = tuya_codec::encode_command_ack(ack, sizeof(ack), 63, 1);
         t.queue(ack, an);
         MaconMaster m(t, clk, sink);
-        CHECK(m.write_register(2013, 45) == MaconResult::Ok);
+        CHECK(m.write_register(63, 45) == MaconResult::Ok);
     }
 
     // ----------------------------------------------------------------------
@@ -297,7 +297,7 @@ int main() {
 
     // ----------------------------------------------------------------------
     // MaconImageSink: driving the master through it ingests decoded windows
-    // into the image (semantic coverage, no reg_base leaked to the consumer)
+    // into the image (semantic coverage, no wire offsets leaked to the consumer)
     // and catalogs the observed window.
     // ----------------------------------------------------------------------
     {

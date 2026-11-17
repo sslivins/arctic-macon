@@ -20,8 +20,8 @@ static int g_failures = 0;
         }                                                                  \
     } while (0)
 
-// Build a full holding+telemetry window (base 2000, 143 regs = 2000..2142).
-static constexpr uint16_t BASE  = 2000;
+// Build a full telemetry+holding window (base @0, 143 regs = @0..@142).
+static constexpr uint16_t BASE  = 0;
 static constexpr size_t   COUNT = 143;
 
 static void set_reg(uint16_t regs[COUNT], uint16_t addr, uint16_t v) {
@@ -70,10 +70,10 @@ int main() {
     set_reg(regs, REG_INLET_WATER_TEMP, 38);
     set_reg(regs, REG_OUTDOOR_AMBIENT_TEMP, (uint16_t)(uint8_t)(int8_t)-7); // sub-zero
     set_reg(regs, REG_DISCHARGE_TEMP, 85);
-    set_reg(regs, REG_HOT_WATER_CEILING, 50);   // reg2012 AP13 ceiling
-    set_reg(regs, REG_COOLING_SETPOINT, 24);    // reg2093 cooling setpoint
-    set_reg(regs, REG_HEATING_SETPOINT, 40);    // reg2094 heating setpoint
-    set_reg(regs, REG_HOT_WATER_SETPOINT, 38);  // reg2095 live hot-water setpoint
+    set_reg(regs, REG_HOT_WATER_CEILING, 50);   // @62 AP13 ceiling
+    set_reg(regs, REG_COOLING_SETPOINT, 24);    // @0 cooling setpoint
+    set_reg(regs, REG_HEATING_SETPOINT, 40);    // @1 heating setpoint
+    set_reg(regs, REG_HOT_WATER_SETPOINT, 38);  // @2 live hot-water setpoint
     set_reg(regs, REG_WORKING_MODE, 1);         // heating
     set_reg(regs, REG_AC_CURRENT, 12);
     set_reg(regs, REG_AC_VOLTAGE, 230);         // x1 => 230 V
@@ -146,15 +146,15 @@ int main() {
     CHECK(es.aux_eev_valid && es.aux_eev == 0);
 
     // --- decode_state: register outside the window -> not valid ------------
-    // A short window that does not reach reg2049.
+    // A short window that does not reach @99.
     uint16_t small[10];
     std::memset(small, 0, sizeof(small));
     MaconState ss;
-    decode_state(BASE, small, 10, &ss);          // covers 2000..2009 only
-    CHECK(!ss.mode_valid);                        // reg2049 absent
+    decode_state(HOLDING_FIRST, small, 10, &ss); // covers @50..@59 only
+    CHECK(!ss.mode_valid);                        // @99 absent
     CHECK(ss.mode == MaconMode::Unknown);         // absent register -> Unknown, not Heating
-    CHECK(ss.ac_current_valid);                   // reg2000 present
-    CHECK(!ss.outlet_valid);                      // reg2132 absent
+    CHECK(ss.ac_current_valid);                   // @50 present
+    CHECK(!ss.outlet_valid);                      // @39 absent
 
     // --- decode_operation --------------------------------------------------
     {
@@ -183,7 +183,7 @@ int main() {
         decode_state(BASE, r, COUNT, &o);
         CHECK(decode_operation(o) == MaconOperation::Cooling);
 
-        reset();                                    // Auto heating despite stale 2049=4
+        reset();                                    // Auto heating despite stale @99=4
         set_reg(r, REG_OPERATING_MODE, 4);
         set_reg(r, REG_WORKING_MODE, 6);
         decode_state(BASE, r, COUNT, &o);
@@ -222,12 +222,12 @@ int main() {
         decode_state(BASE, r, COUNT, &o);
         CHECK(decode_operation(o) == MaconOperation::Fault);
 
-        reset();                                    // reg2007 low-nibble fault bit
+        reset();                                    // @57 low-nibble fault bit
         set_reg(r, REG_FAULT_RUNSTATE, 0x21);       // enabled + P15
         decode_state(BASE, r, COUNT, &o);
         CHECK(decode_operation(o) == MaconOperation::Fault);
 
-        reset();                                    // reg2130 icon bit must NOT gate
+        reset();                                    // @37 icon bit must NOT gate
         set_reg(r, REG_COMPRESSOR_FREQ, 0);         // not running by frequency
         set_reg(r, REG_STATUS_BYTE, 0x04);          // icon compressor bit set
         decode_state(BASE, r, COUNT, &o);
@@ -237,7 +237,7 @@ int main() {
         uint16_t few[10];
         std::memset(few, 0, sizeof(few));
         MaconState u;
-        decode_state(BASE, few, 10, &u);            // covers 2000..2009 only
+        decode_state(HOLDING_FIRST, few, 10, &u);   // covers @50..@59 only
         CHECK(decode_operation(u) == MaconOperation::Unknown);
 
         CHECK(std::strcmp(operation_name(MaconOperation::Heating), "Heating") == 0);
@@ -360,7 +360,7 @@ int main() {
         CHECK(!estimate_performance_with_temps(hd, 41.25f, 37.75f, water40).valid);
         CHECK(!estimate_performance_with_temps(h, NAN, 37.75f, water40).valid);
 
-        // Auto (hot water + cooling) heating the tank: reg2049 stays at 4
+        // Auto (hot water + cooling) heating the tank: @99 stays at 4
         // ("cooling") but the live reversing-valve bit says heating. The
         // estimate must follow the live bit, not reject the positive dT.
         std::memset(r, 0, sizeof(r));
@@ -405,7 +405,7 @@ int main() {
         SetpointLimits wl = setpoint_limits(SetpointKind::HotWater);
         CHECK(wl.min_c == 30 && wl.max_c == 60 && !wl.max_from_unit);
 
-        // Hot water WITH a live ceiling (reg2012) -> max tracks the unit.
+        // Hot water WITH a live ceiling (@62) -> max tracks the unit.
         uint16_t rr[COUNT] = {0};
         set_reg(rr, REG_HOT_WATER_CEILING, 50);
         MaconState wc;

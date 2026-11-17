@@ -7,65 +7,65 @@ namespace arctic {
 // ---------------------------------------------------------------------------
 // Canonical Macon fault table.
 //
-// Grouped by register (2007, 2125, 2126, 2127, 2128).  Codes were discovered
+// Grouped by register (@57, @32, @33, @34, @35).  Codes were discovered
 // live on the real unit 2026-07-05 and re-verified bit by bit against the OEM
 // wired controller + Macon app on 2026-09-26 (arctic-macon #37), which also
 // found the FA (DC fan motor) bit.  Labels are our own plain-English wording of
 // the app's meaning, not the app's text.  `wired_display` records whether the
 // OEM wired controller shows the code (r-codes, P19 and FA are app-only).
 // FE/FF wording comes from the Arctic EVI fault catalog (the app has no text
-// for them). Only confirmed bits are listed; unused bits (2007.4/6/7, 2126.3, 2128.6)
+// for them). Only confirmed bits are listed; unused bits (@57.4/6/7, @33.3, @35.6)
 // showed nothing on either and are omitted.
 // ---------------------------------------------------------------------------
 
 const MaconFaultBit MACON_FAULT_BITS[] = {
     // { reg, bit, code, English label, severity, id, label i18n key, wired_display }
-    // reg 2007 — run-state / P15 / P16 / FE / FF.
+    // @57 — run-state / P15 / P16 / FE / FF.
     // bit4/6/7 = nothing; bit5 (0x20) = RUN indicator (INFO): clearing it makes
     // the OEM controller show the unit as off.
-    { 2007, 0, "P15", "Inlet/outlet temperature difference too large",           FaultSeverity::WARNING,  MaconFaultId::TempDifferenceTooLarge,      "fault.temp_difference_too_large.label",   true  },
-    { 2007, 1, "P16", "Outlet water too cold",                                   FaultSeverity::WARNING,  MaconFaultId::OutletTempTooLow,            "fault.outlet_temp_too_low.label",         true  },
-    { 2007, 2, "FE",  "Pressure difference protection at startup",               FaultSeverity::FAULT,    MaconFaultId::FeProtection,                "fault.fe_protection.label",               true  },
-    { 2007, 3, "FF",  "Pressure difference protection while running",            FaultSeverity::FAULT,    MaconFaultId::FfProtection,                "fault.ff_protection.label",               true  },
-    { 2007, 5, "RUN", "Run indicator",                                           FaultSeverity::INFO,     MaconFaultId::Unknown,                     nullptr,                                   false },
+    {   57, 0, "P15", "Inlet/outlet temperature difference too large",           FaultSeverity::WARNING,  MaconFaultId::TempDifferenceTooLarge,      "fault.temp_difference_too_large.label",   true  },
+    {   57, 1, "P16", "Outlet water too cold",                                   FaultSeverity::WARNING,  MaconFaultId::OutletTempTooLow,            "fault.outlet_temp_too_low.label",         true  },
+    {   57, 2, "FE",  "Pressure difference protection at startup",               FaultSeverity::FAULT,    MaconFaultId::FeProtection,                "fault.fe_protection.label",               true  },
+    {   57, 3, "FF",  "Pressure difference protection while running",            FaultSeverity::FAULT,    MaconFaultId::FfProtection,                "fault.ff_protection.label",               true  },
+    {   57, 5, "RUN", "Run indicator",                                           FaultSeverity::INFO,     MaconFaultId::Unknown,                     nullptr,                                   false },
 
-    // reg 2125 — sensor / EEPROM / comm E-codes.
-    { 2125, 0, "E28", "Outdoor board memory (EEPROM) fault",                     FaultSeverity::FAULT,    MaconFaultId::EepromError,                 "fault.eeprom_outdoor.label",              true  },
-    { 2125, 1, "E19", "Inlet water temperature sensor fault",                    FaultSeverity::FAULT,    MaconFaultId::InletWaterSensor,            "fault.inlet_water_sensor.label",          true  },
-    { 2125, 2, "E18", "Outlet water temperature sensor fault",                   FaultSeverity::FAULT,    MaconFaultId::OutletWaterSensor,           "fault.outlet_water_sensor.label",         true  },
-    { 2125, 3, "E13", "Cold coil temperature sensor fault",                      FaultSeverity::FAULT,    MaconFaultId::CoolCoilSensor,              "fault.cold_coil_sensor.label",            true  },
-    { 2125, 4, "E03", "E03 protection",                                          FaultSeverity::FAULT,    MaconFaultId::E03Protection,               "fault.e03_protection.label",              true  },
-    { 2125, 5, "E28", "Indoor board memory (EEPROM) fault",                      FaultSeverity::FAULT,    MaconFaultId::EepromError,                 "fault.eeprom_indoor.label",               true  },
-    { 2125, 6, "E27", "Lost communication with the compressor driver board",     FaultSeverity::CRITICAL, MaconFaultId::DriverCommunication,         "fault.driver_communication.label",        true  },
-    { 2125, 7, "E21", "Lost communication with the wired controller",            FaultSeverity::CRITICAL, MaconFaultId::ControllerCommunication,     "fault.controller_communication.label",    true  },
+    // @32 — sensor / EEPROM / comm E-codes.
+    {   32, 0, "E28", "Outdoor board memory (EEPROM) fault",                     FaultSeverity::FAULT,    MaconFaultId::EepromError,                 "fault.eeprom_outdoor.label",              true  },
+    {   32, 1, "E19", "Inlet water temperature sensor fault",                    FaultSeverity::FAULT,    MaconFaultId::InletWaterSensor,            "fault.inlet_water_sensor.label",          true  },
+    {   32, 2, "E18", "Outlet water temperature sensor fault",                   FaultSeverity::FAULT,    MaconFaultId::OutletWaterSensor,           "fault.outlet_water_sensor.label",         true  },
+    {   32, 3, "E13", "Cold coil temperature sensor fault",                      FaultSeverity::FAULT,    MaconFaultId::CoolCoilSensor,              "fault.cold_coil_sensor.label",            true  },
+    {   32, 4, "E03", "E03 protection",                                          FaultSeverity::FAULT,    MaconFaultId::E03Protection,               "fault.e03_protection.label",              true  },
+    {   32, 5, "E28", "Indoor board memory (EEPROM) fault",                      FaultSeverity::FAULT,    MaconFaultId::EepromError,                 "fault.eeprom_indoor.label",               true  },
+    {   32, 6, "E27", "Lost communication with the compressor driver board",     FaultSeverity::CRITICAL, MaconFaultId::DriverCommunication,         "fault.driver_communication.label",        true  },
+    {   32, 7, "E21", "Lost communication with the wired controller",            FaultSeverity::CRITICAL, MaconFaultId::ControllerCommunication,     "fault.controller_communication.label",    true  },
 
-    // reg 2126 — sensor / comm / compressor (E + r01/r02).
-    { 2126, 0, "r02", "Compressor failed to start",                              FaultSeverity::FAULT,    MaconFaultId::CompressorStartFailure,      "fault.compressor_start_failure.label",    false },
-    { 2126, 1, "E26", "Lost communication between indoor and outdoor boards",    FaultSeverity::CRITICAL, MaconFaultId::IndoorOutdoorCommunication,  "fault.indoor_outdoor_communication.label", true  },
-    { 2126, 2, "r01", "Compressor inverter (IPM) fault",                         FaultSeverity::CRITICAL, MaconFaultId::IpmFault,                    "fault.ipm_fault.label",                   false },
-    { 2126, 4, "E01", "Discharge temperature sensor fault",                      FaultSeverity::FAULT,    MaconFaultId::DischargeSensor,             "fault.discharge_sensor.label",            true  },
-    { 2126, 5, "E09", "Suction temperature sensor fault",                        FaultSeverity::FAULT,    MaconFaultId::SuctionSensor,               "fault.suction_sensor.label",              true  },
-    { 2126, 6, "E05", "Outdoor coil temperature sensor fault",                   FaultSeverity::FAULT,    MaconFaultId::CoilSensor,                  "fault.outdoor_coil_sensor.label",         true  },
-    { 2126, 7, "E22", "Outdoor air temperature sensor fault",                    FaultSeverity::FAULT,    MaconFaultId::AmbientSensor,               "fault.ambient_sensor.label",              true  },
+    // @33 — sensor / comm / compressor (E + r01/r02).
+    {   33, 0, "r02", "Compressor failed to start",                              FaultSeverity::FAULT,    MaconFaultId::CompressorStartFailure,      "fault.compressor_start_failure.label",    false },
+    {   33, 1, "E26", "Lost communication between indoor and outdoor boards",    FaultSeverity::CRITICAL, MaconFaultId::IndoorOutdoorCommunication,  "fault.indoor_outdoor_communication.label", true  },
+    {   33, 2, "r01", "Compressor inverter (IPM) fault",                         FaultSeverity::CRITICAL, MaconFaultId::IpmFault,                    "fault.ipm_fault.label",                   false },
+    {   33, 4, "E01", "Discharge temperature sensor fault",                      FaultSeverity::FAULT,    MaconFaultId::DischargeSensor,             "fault.discharge_sensor.label",            true  },
+    {   33, 5, "E09", "Suction temperature sensor fault",                        FaultSeverity::FAULT,    MaconFaultId::SuctionSensor,               "fault.suction_sensor.label",              true  },
+    {   33, 6, "E05", "Outdoor coil temperature sensor fault",                   FaultSeverity::FAULT,    MaconFaultId::CoilSensor,                  "fault.outdoor_coil_sensor.label",         true  },
+    {   33, 7, "E22", "Outdoor air temperature sensor fault",                    FaultSeverity::FAULT,    MaconFaultId::AmbientSensor,               "fault.ambient_sensor.label",              true  },
 
-    // reg 2127 — electrical / power-stage (FA + r-codes + P02/P11).
-    { 2127, 0, "FA",  "DC fan motor fault",                                      FaultSeverity::FAULT,    MaconFaultId::DcFanMotor,                  "fault.dc_fan_motor.label",                false },
-    { 2127, 1, "P19", "Input current too high",                                  FaultSeverity::FAULT,    MaconFaultId::AcCurrentProtection,         "fault.ac_current_protection.label",       false },
-    { 2127, 2, "r06", "Compressor phase current fault",                          FaultSeverity::FAULT,    MaconFaultId::CompressorPhaseCurrent,      "fault.compressor_phase_current.label",    false },
-    { 2127, 3, "r10", "Supply voltage too high or too low",                      FaultSeverity::FAULT,    MaconFaultId::AcVoltageProtection,         "fault.ac_voltage_protection.label",       false },
-    { 2127, 4, "r11", "Inverter DC voltage too high or too low",                 FaultSeverity::FAULT,    MaconFaultId::DcBusVoltageProtection,      "fault.dc_bus_voltage_protection.label",   false },
-    { 2127, 5, "r05", "Compressor inverter (IPM) overheating",                   FaultSeverity::FAULT,    MaconFaultId::IpmTemperatureProtection,    "fault.ipm_temperature_protection.label",  false },
-    { 2127, 6, "P11", "Discharge temperature too high",                          FaultSeverity::FAULT,    MaconFaultId::HighDischargeTemp,           "fault.high_discharge_temp.label",         true  },
-    { 2127, 7, "P02", "Refrigerant pressure too high",                           FaultSeverity::CRITICAL, MaconFaultId::HighPressureProtection,      "fault.high_pressure.label",               true  },
+    // @34 — electrical / power-stage (FA + r-codes + P02/P11).
+    {   34, 0, "FA",  "DC fan motor fault",                                      FaultSeverity::FAULT,    MaconFaultId::DcFanMotor,                  "fault.dc_fan_motor.label",                false },
+    {   34, 1, "P19", "Input current too high",                                  FaultSeverity::FAULT,    MaconFaultId::AcCurrentProtection,         "fault.ac_current_protection.label",       false },
+    {   34, 2, "r06", "Compressor phase current fault",                          FaultSeverity::FAULT,    MaconFaultId::CompressorPhaseCurrent,      "fault.compressor_phase_current.label",    false },
+    {   34, 3, "r10", "Supply voltage too high or too low",                      FaultSeverity::FAULT,    MaconFaultId::AcVoltageProtection,         "fault.ac_voltage_protection.label",       false },
+    {   34, 4, "r11", "Inverter DC voltage too high or too low",                 FaultSeverity::FAULT,    MaconFaultId::DcBusVoltageProtection,      "fault.dc_bus_voltage_protection.label",   false },
+    {   34, 5, "r05", "Compressor inverter (IPM) overheating",                   FaultSeverity::FAULT,    MaconFaultId::IpmTemperatureProtection,    "fault.ipm_temperature_protection.label",  false },
+    {   34, 6, "P11", "Discharge temperature too high",                          FaultSeverity::FAULT,    MaconFaultId::HighDischargeTemp,           "fault.high_discharge_temp.label",         true  },
+    {   34, 7, "P02", "Refrigerant pressure too high",                           FaultSeverity::CRITICAL, MaconFaultId::HighPressureProtection,      "fault.high_pressure.label",               true  },
 
-    // reg 2128 — refrigerant / protection P-codes.
-    { 2128, 0, "P06", "Refrigerant pressure too low",                            FaultSeverity::CRITICAL, MaconFaultId::LowPressureProtection,       "fault.low_pressure.label",                true  },
-    { 2128, 1, "P27", "Cold coil too hot",                                       FaultSeverity::FAULT,    MaconFaultId::CoilOverheat,                "fault.coil_overheat.label",               true  },
-    { 2128, 2, "PC",  "Outdoor temperature outside operating range",             FaultSeverity::WARNING,  MaconFaultId::AmbientOutOfRange,           "fault.ambient_out_of_range.label",        true  },
-    { 2128, 3, "P10", "P10 protection",                                          FaultSeverity::FAULT,    MaconFaultId::P10Protection,               "fault.p10_protection.label",              true  },
-    { 2128, 4, "P30", "Cold coil too cold (freeze protection)",                  FaultSeverity::WARNING,  MaconFaultId::AntifreezeProtection,        "fault.antifreeze_protection.label",       true  },
-    { 2128, 5, "E05", "Coil temperature sensor fault",                           FaultSeverity::FAULT,    MaconFaultId::CoilSensor,                  "fault.coil_sensor.label",                 true  },
-    { 2128, 7, "P01", "Water flow too low (flow switch)",                        FaultSeverity::CRITICAL, MaconFaultId::WaterFlowProtection,         "fault.water_flow.label",                  true  },
+    // @35 — refrigerant / protection P-codes.
+    {   35, 0, "P06", "Refrigerant pressure too low",                            FaultSeverity::CRITICAL, MaconFaultId::LowPressureProtection,       "fault.low_pressure.label",                true  },
+    {   35, 1, "P27", "Cold coil too hot",                                       FaultSeverity::FAULT,    MaconFaultId::CoilOverheat,                "fault.coil_overheat.label",               true  },
+    {   35, 2, "PC",  "Outdoor temperature outside operating range",             FaultSeverity::WARNING,  MaconFaultId::AmbientOutOfRange,           "fault.ambient_out_of_range.label",        true  },
+    {   35, 3, "P10", "P10 protection",                                          FaultSeverity::FAULT,    MaconFaultId::P10Protection,               "fault.p10_protection.label",              true  },
+    {   35, 4, "P30", "Cold coil too cold (freeze protection)",                  FaultSeverity::WARNING,  MaconFaultId::AntifreezeProtection,        "fault.antifreeze_protection.label",       true  },
+    {   35, 5, "E05", "Coil temperature sensor fault",                           FaultSeverity::FAULT,    MaconFaultId::CoilSensor,                  "fault.coil_sensor.label",                 true  },
+    {   35, 7, "P01", "Water flow too low (flow switch)",                        FaultSeverity::CRITICAL, MaconFaultId::WaterFlowProtection,         "fault.water_flow.label",                  true  },
 };
 
 const size_t MACON_FAULT_BITS_COUNT = sizeof(MACON_FAULT_BITS) / sizeof(MACON_FAULT_BITS[0]);
@@ -82,8 +82,8 @@ static const char *kDefaultResolution       = "Contact your dealer.";
 static const char *kDefaultResolutionMsgId  = "fault.default.resolution";
 
 // Defined later in this file; used by macon_has_fault_id below.
-static uint8_t reg_value(uint16_t reg, uint8_t r2007, uint8_t r2125,
-                         uint8_t r2126, uint8_t r2127, uint8_t r2128);
+static uint8_t reg_value(uint16_t reg, uint8_t at57, uint8_t at32,
+                         uint8_t at33, uint8_t at34, uint8_t at35);
 
 struct MaconFaultDesc {
     MaconFaultId id;
@@ -203,14 +203,14 @@ const char *macon_fault_resolution_msg_id(MaconFaultId id)
     return kDefaultResolutionMsgId;
 }
 
-bool macon_has_fault_id(uint8_t r2007, uint8_t r2125, uint8_t r2126,
-                        uint8_t r2127, uint8_t r2128, MaconFaultId id)
+bool macon_has_fault_id(uint8_t at57, uint8_t at32, uint8_t at33,
+                        uint8_t at34, uint8_t at35, MaconFaultId id)
 {
     if (id == MaconFaultId::Unknown) return false;
     for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {
         const MaconFaultBit &fb = MACON_FAULT_BITS[i];
         if (fb.id != id || fb.severity == FaultSeverity::INFO) continue;
-        uint8_t v = reg_value(fb.reg, r2007, r2125, r2126, r2127, r2128);
+        uint8_t v = reg_value(fb.reg, at57, at32, at33, at34, at35);
         if (v & (1u << fb.bit)) return true;
     }
     return false;
@@ -299,33 +299,33 @@ int macon_set_fault_by_code(uint16_t *regs, uint16_t base, size_t count,
     return written;
 }
 
-static uint8_t reg_value(uint16_t reg, uint8_t r2007, uint8_t r2125,
-                         uint8_t r2126, uint8_t r2127, uint8_t r2128)
+static uint8_t reg_value(uint16_t reg, uint8_t at57, uint8_t at32,
+                         uint8_t at33, uint8_t at34, uint8_t at35)
 {
     switch (reg) {
-        case 2007: return r2007;
-        case 2125: return r2125;
-        case 2126: return r2126;
-        case 2127: return r2127;
-        case 2128: return r2128;
+        case 57: return at57;
+        case 32: return at32;
+        case 33: return at33;
+        case 34: return at34;
+        case 35: return at35;
         default:   return 0;
     }
 }
 
-bool macon_has_fault(uint8_t r2007, uint8_t r2125, uint8_t r2126,
-                     uint8_t r2127, uint8_t r2128)
+bool macon_has_fault(uint8_t at57, uint8_t at32, uint8_t at33,
+                     uint8_t at34, uint8_t at35)
 {
     for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {
         const MaconFaultBit &fb = MACON_FAULT_BITS[i];
         if (fb.severity == FaultSeverity::INFO) continue;
-        uint8_t v = reg_value(fb.reg, r2007, r2125, r2126, r2127, r2128);
+        uint8_t v = reg_value(fb.reg, at57, at32, at33, at34, at35);
         if (v & (1u << fb.bit)) return true;
     }
     return false;
 }
 
-size_t macon_decode_faults(uint8_t r2007, uint8_t r2125, uint8_t r2126,
-                           uint8_t r2127, uint8_t r2128,
+size_t macon_decode_faults(uint8_t at57, uint8_t at32, uint8_t at33,
+                           uint8_t at34, uint8_t at35,
                            MaconFault *out, size_t max)
 {
     if (!out || max == 0) return 0;
@@ -334,7 +334,7 @@ size_t macon_decode_faults(uint8_t r2007, uint8_t r2125, uint8_t r2126,
     for (size_t i = 0; i < MACON_FAULT_BITS_COUNT && n < max; ++i) {
         const MaconFaultBit &fb = MACON_FAULT_BITS[i];
         if (fb.severity == FaultSeverity::INFO) continue;   // skip RUN indicator
-        uint8_t v = reg_value(fb.reg, r2007, r2125, r2126, r2127, r2128);
+        uint8_t v = reg_value(fb.reg, at57, at32, at33, at34, at35);
         if (!(v & (1u << fb.bit))) continue;
         out[n].code     = fb.code;
         out[n].label    = fb.label;

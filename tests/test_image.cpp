@@ -116,7 +116,7 @@ int main() {
     // --- clear_faults preserves the RUN indicator ---------------------------
     {
         MaconImage img;
-        img.set_flag(MaconFlag::UnitOn, true);                 // reg2007 bit5
+        img.set_flag(MaconFlag::UnitOn, true);                 // @57 bit5
         img.set_fault(MaconFaultId::HighPressureProtection, true);
         img.clear_faults();
         MaconState s;
@@ -127,8 +127,8 @@ int main() {
 
     // --- ingest equivalence with decode_state over the same bytes -----------
     {
-        const uint16_t base = HOLDING_START;
-        const size_t count = INPUT_START + INPUT_COUNT - HOLDING_START;  // 2000..2142
+        const uint16_t base = TELEMETRY_FIRST;
+        const size_t count = MaconImage::window_count();  // @0..@142
         uint16_t regs[200] = {0};
         // sprinkle representative values
         regs[REG_WATER_TANK_TEMP - base] = 44;
@@ -149,7 +149,7 @@ int main() {
 
         // A telemetry-only window does not claim status coverage.
         MaconImage img2;
-        MaconCoverage cov2 = img2.ingest(INPUT_START, regs, 5);  // 2093..2097
+        MaconCoverage cov2 = img2.ingest(TELEMETRY_FIRST, regs, 5);  // @0..@4
         CHECK(!cov2.status_updated);
     }
 
@@ -159,17 +159,18 @@ int main() {
         img.set_temp(MaconField::WaterTankTemp, 30);
         uint16_t base_out = 0, buf[200] = {0};
         uint16_t n = img.raw(&base_out, buf, 200);
-        CHECK(base_out == HOLDING_START);
+        CHECK(base_out == TELEMETRY_FIRST);
         CHECK(n == MaconImage::window_count());
-        CHECK(buf[REG_WATER_TANK_TEMP - HOLDING_START] == 30);
+        CHECK(buf[REG_WATER_TANK_TEMP - TELEMETRY_FIRST] == 30);
 
         CHECK(img.set_register(REG_WATER_TANK_TEMP, 22));
         uint16_t v = 0;
         CHECK(img.get_register(REG_WATER_TANK_TEMP, &v) && v == 22);
-        CHECK(!img.set_register(1999, 5));      // below window
+        CHECK(!img.set_register(MaconImage::window_count(), 5));  // just past window
         CHECK(!img.set_register(9999, 5));      // above window
+        CHECK(!img.set_register(0xFFFF, 5));    // no-address sentinel
         CHECK(!img.set_register(REG_WATER_TANK_TEMP, 300));  // > one byte
-        CHECK(img.in_window(HOLDING_START) && !img.in_window(1999));
+        CHECK(img.in_window(TELEMETRY_FIRST) && !img.in_window(MaconImage::window_count()));
     }
 
     // --- macon_field_address (diagnostic dump address lookup) ---------------
@@ -178,7 +179,8 @@ int main() {
         CHECK(macon_field_address(MaconField::AcVoltage)     == REG_AC_VOLTAGE);
         CHECK(macon_field_address(MaconField::RealtimePower) == REG_REALTIME_POWER);
         CHECK(macon_field_address(MaconField::CoolingSetpoint) == REG_COOLING_SETPOINT);
-        // Every settable field must resolve to a non-zero address.
+        // Every settable field must resolve to a real address (offset 0 is the
+        // cooling setpoint, so the "no address" sentinel is MACON_NO_ADDRESS).
         const MaconField all[] = {
             MaconField::WaterTankTemp, MaconField::OutletWaterTemp, MaconField::InletWaterTemp,
             MaconField::DischargeTemp, MaconField::SuctionTemp, MaconField::OutdoorCoilTemp,
@@ -188,7 +190,7 @@ int main() {
             MaconField::RealtimePower, MaconField::CoolingSetpoint, MaconField::HeatingSetpoint,
             MaconField::HotWaterSetpoint, MaconField::HotWaterCeiling, MaconField::AuxEev,
             MaconField::HighPressure, MaconField::LowPressure };
-        for (MaconField f : all) CHECK(macon_field_address(f) != 0);
+        for (MaconField f : all) CHECK(macon_field_address(f) != MACON_NO_ADDRESS);
     }
 
     if (g_failures) {

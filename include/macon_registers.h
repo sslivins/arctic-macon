@@ -8,90 +8,94 @@
 namespace arctic {
 
 // ---------------------------------------------------------------------------
-// Register address constants  (protocol native numbering)
+// Register address constants
+//
+// A register address is the BYTE OFFSET into the unified Macon register page,
+// exactly the value carried in the wire frame's `addr` field ("@N" in logs and
+// docs). A read window starting at wire addr A returns @A, @A+1, ...; a
+// single-register fc=0x06 write to @N carries addr N.
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // MACON layout (reverse-engineered from live captures on the real heat pump).
-// This is NOT the legacy Arctic/ECO-600 numbering — the Macon device reuses
-// the same wire register numbers for entirely different fields. Only registers
-// confirmed against synchronized on-unit menu (o/A code) reads are named;
-// everything else decodes as a raw byte ("Unknown").
+// Only registers confirmed against synchronized on-unit menu (o/A code) reads
+// are named; everything else decodes as a raw byte ("Unknown").
 //
 // Each wire register is ONE signed/unsigned byte (see decode_byte()).
 // ---------------------------------------------------------------------------
 
-// "Holding" window (wire addr=50, base 2000). Despite the legacy "holding"
-// name, on the Macon unit this block carries telemetry, not control regs.
-constexpr uint16_t REG_AC_CURRENT           = 2000;  // A4  AC input current
-constexpr uint16_t REG_DC_BUS_VOLTAGE       = 2001;  // A7  DC bus voltage (x10 = V)
-constexpr uint16_t REG_DC_MOTOR_SPEED       = 2003;  // A10 DC (fan) motor speed
-constexpr uint16_t REG_FAULT_RUNSTATE       = 2007;  // fault bitfield + run indicator
-constexpr uint16_t REG_WATER_TANK_TEMP      = 2008;  // o1  water tank temp
+// "Telemetry" window (wire addr=0, count=50 -> @0..@49). @0 is the cooling
+// setpoint (the former "7-byte prefix" is NOT static, byte0 is the setpoint).
+// The controller SETS a setpoint by writing one byte to its offset (fc=0x06).
+// Confirmed live 2026-07-09.
+constexpr uint16_t TELEMETRY_FIRST = 0;
+constexpr uint16_t TELEMETRY_COUNT = 50;   // @0..@49
+
+constexpr uint16_t REG_COOLING_SETPOINT     = 0;   // cooling setpoint (whole °C, confirmed)
+// Heating setpoint used by working modes 1 and 2. Confirmed on the bench
+// 2026-09-26: with mode 1 selected the OEM wired controller shows this value,
+// and dialling it to 47 emitted fc=0x06 wire addr 0x0001 data 47. (Modes 3 and
+// 4 show holding @60 / @61 instead; see macon_state.h.)
+constexpr uint16_t REG_HEATING_SETPOINT     = 1;   // heating setpoint (confirmed)
+// Live hot-water setpoint. Confirmed 2026-07-09: dialing the hot-water
+// setpoint to 38 °C moved @2 0x32(50) -> 0x26(38) and emitted an fc=0x06 write
+// to wire addr 0x0002. This is the live target, distinct from the @62 (AP13)
+// ceiling.
+constexpr uint16_t REG_HOT_WATER_SETPOINT   = 2;   // live hot-water setpoint (confirmed)
+// Confirmed live 2026-08-09 (the OEM writes value 6) and mapped on the bench
+// 2026-09-26: 0=cooling, 1=heating, 2/3/4=heating variants (read-only), 5=hot
+// water, 6=hot water / cooling. See MaconWorkingMode.
+constexpr uint16_t REG_WORKING_MODE         = 3;
+constexpr uint16_t REG_IPM_TEMP             = 20;  // A8  IPM module temp
+constexpr uint16_t REG_REALTIME_POWER       = 21;  // A9  real-time power (x100 = W)
+constexpr uint16_t REG_FAULT_SENSOR_EE      = 32;  // fault bitfield: sensor/EE/comm E-codes
+constexpr uint16_t REG_FAULT_SENSOR_COMP    = 33;  // fault bitfield: sensor/comm/compressor (E + r01/r02)
+constexpr uint16_t REG_FAULT_ELEC           = 34;  // fault bitfield: electrical/power-stage (r-codes + P02/P11)
+constexpr uint16_t REG_FAULT                = 35;  // fault bitfield: refrigerant/protection (P-codes)
+constexpr uint16_t REG_ICON_BITS2           = 36;  // icon bitfield #2: bit1 defrost, bit4 fan
+constexpr uint16_t REG_STATUS_BYTE          = 37;  // icon bitfield #1: bit2=comp, bit3=pump
+constexpr uint16_t REG_OUTLET_WATER_TEMP    = 39;  // o3  outlet (supply) water temp
+constexpr uint16_t REG_INLET_WATER_TEMP     = 40;  // o2  inlet (return) water temp
+constexpr uint16_t REG_OUTDOOR_AMBIENT_TEMP = 41;  // o4  ambient temp
+constexpr uint16_t REG_COOL_COIL_TEMP       = 42;  // A6  cool coil temp
+constexpr uint16_t REG_COIL_TEMP            = 43;  // A2  coil temp
+constexpr uint16_t REG_SUCTION_TEMP         = 44;  // A3  suction temp
+constexpr uint16_t REG_DISCHARGE_TEMP       = 45;  // A1  discharge temp
+// A5 / A13, bench-verified 2026-11-03 (the earlier @11 / @8 mapping was wrong:
+// both are constant settings bytes).
+constexpr uint16_t REG_MAIN_EEV             = 47;  // A5  main EEV opening (raw, as the OEM shows it)
+constexpr uint16_t REG_COMPRESSOR_FREQ      = 48;  // A14 compressor frequency
+constexpr uint16_t REG_AC_VOLTAGE           = 49;  // A13 AC input voltage (V x1; the OEM shows V/10)
+
+// "Holding" window (wire addr=50, count=58 -> @50..@107). Despite the legacy
+// "holding" name, on the Macon unit this block carries telemetry, not control
+// regs.
+constexpr uint16_t HOLDING_FIRST = 50;
+constexpr uint16_t HOLDING_COUNT = 58;     // @50..@107
+
+constexpr uint16_t REG_AC_CURRENT           = 50;  // A4  AC input current
+constexpr uint16_t REG_DC_BUS_VOLTAGE       = 51;  // A7  DC bus voltage (x10 = V)
+constexpr uint16_t REG_DC_MOTOR_SPEED       = 53;  // A10 DC (fan) motor speed
+constexpr uint16_t REG_FAULT_RUNSTATE       = 57;  // fault bitfield + run indicator
+constexpr uint16_t REG_WATER_TANK_TEMP      = 58;  // o1  water tank temp
+// AP13 "Highest setting temperature of hot water, heating mode" (20~55 °C,
+// default 50). This is the CEILING/limit the mainboard enforces, NOT the live
+// user setpoint (that is REG_HOT_WATER_SETPOINT @2). Confirmed: dialing the
+// display setpoint down did not move @62; it stayed at its 50 °C ceiling.
+constexpr uint16_t REG_HOT_WATER_CEILING    = 62;  // AP13 max hot-water temp (ceiling, not live setpoint)
 // A11 / A12. Raw bytes as the OEM shows them (bench-verified 2026-11-03); the
 // unit and scale are unknown. Units without pressure transducers read a
 // constant -6 / 3.
-constexpr uint16_t REG_HIGH_PRESSURE        = 2013;  // A11 high pressure (signed byte)
-constexpr uint16_t REG_LOW_PRESSURE         = 2014;  // A12 low pressure (raw)
-constexpr uint16_t REG_AUX_EEV              = 2048;  // o6  auxiliary (EVI) EEV opening (raw)
-// AP13 "Highest setting temperature of hot water, heating mode" (20~55 °C,
-// default 50). This is the CEILING/limit the mainboard enforces, NOT the live
-// user setpoint (that is REG_HOT_WATER_SETPOINT=2095). Confirmed: dialing the
-// display setpoint down did not move reg2012; it stayed at its 50 °C ceiling.
-constexpr uint16_t REG_HOT_WATER_CEILING    = 2012;  // AP13 max hot-water temp (ceiling, not live setpoint)
+constexpr uint16_t REG_HIGH_PRESSURE        = 63;  // A11 high pressure (signed byte)
+constexpr uint16_t REG_LOW_PRESSURE         = 64;  // A12 low pressure (raw)
+constexpr uint16_t REG_AUX_EEV              = 98;  // o6  auxiliary (EVI) EEV opening (raw)
 
 // Operating direction, set by the reversing valve (NOT a user-selectable menu
 // mode). Runtime telemetry, not static config: observed flipping 0->4 live when
 // the unit switched to cooling. Validated across the full 4749-row historical
 // dataset — only 0x00 (heating) and 0x04 (cooling) ever appear. See macon_state.h
 // for the MaconMode decode (bit-masked on 0x04, Unknown for any unobserved bit).
-constexpr uint16_t REG_OPERATING_MODE       = 2049;
-
-constexpr uint16_t HOLDING_START = 2000;
-constexpr uint16_t HOLDING_COUNT = 58;   // 2000–2057
-
-// "Telemetry" window (wire addr=0, base 2093; byte0 = reg2093 = cooling
-// setpoint — the former "7-byte prefix" is NOT static, byte0 is the setpoint).
-// The controller SETS a setpoint by writing one byte to the matching wire byte
-// offset (fc=0x06): wire addr N -> reg 2093+N. Confirmed live 2026-07-09.
-constexpr uint16_t REG_COOLING_SETPOINT     = 2093;  // wire addr 0x0000; cooling setpoint (whole °C, confirmed)
-// wire addr 0x0001. Heating setpoint used by working modes 1 and 2. Confirmed
-// on the bench 2026-09-26: with mode 1 selected the OEM wired controller shows
-// this value, and dialling it to 47 emitted fc=0x06 wire addr 0x0001 data 47.
-// (Modes 3 and 4 show holding reg2010 / reg2011 instead; see macon_state.h.)
-constexpr uint16_t REG_HEATING_SETPOINT     = 2094;  // wire addr 0x0001; heating setpoint (confirmed)
-// wire addr 0x0002. Live hot-water setpoint. Confirmed 2026-07-09: dialing the
-// hot-water setpoint to 38 °C moved reg2095 0x32(50) -> 0x26(38) and emitted an
-// fc=0x06 write to wire addr 0x0002. This is the live target, distinct from the
-// reg2012 (AP13) ceiling.
-constexpr uint16_t REG_HOT_WATER_SETPOINT   = 2095;  // wire addr 0x0002; live hot-water setpoint (confirmed)
-// wire addr 0x0003. Confirmed live 2026-08-09 (the OEM writes value 6) and
-// mapped on the bench 2026-09-26: 0=cooling, 1=heating, 2/3/4=heating variants
-// (read-only), 5=hot water, 6=hot water / cooling. See MaconWorkingMode.
-constexpr uint16_t REG_WORKING_MODE         = 2096;
-constexpr uint16_t REG_IPM_TEMP             = 2113;  // A8  IPM module temp
-constexpr uint16_t REG_REALTIME_POWER       = 2114;  // A9  real-time power (x100 = W)
-constexpr uint16_t REG_FAULT_SENSOR_EE      = 2125;  // fault bitfield: sensor/EE/comm E-codes
-constexpr uint16_t REG_FAULT_SENSOR_COMP    = 2126;  // fault bitfield: sensor/comm/compressor (E + r01/r02)
-constexpr uint16_t REG_FAULT_ELEC           = 2127;  // fault bitfield: electrical/power-stage (r-codes + P02/P11)
-constexpr uint16_t REG_FAULT                = 2128;  // fault bitfield: refrigerant/protection (P-codes)
-constexpr uint16_t REG_ICON_BITS2           = 2129;  // icon bitfield #2: bit1 defrost, bit4 fan
-constexpr uint16_t REG_STATUS_BYTE          = 2130;  // icon bitfield #1: bit2=comp, bit3=pump
-constexpr uint16_t REG_OUTLET_WATER_TEMP    = 2132;  // o3  outlet (supply) water temp
-constexpr uint16_t REG_INLET_WATER_TEMP     = 2133;  // o2  inlet (return) water temp
-constexpr uint16_t REG_OUTDOOR_AMBIENT_TEMP = 2134;  // o4  ambient temp
-constexpr uint16_t REG_COOL_COIL_TEMP       = 2135;  // A6  cool coil temp
-constexpr uint16_t REG_COIL_TEMP            = 2136;  // A2  coil temp
-constexpr uint16_t REG_SUCTION_TEMP         = 2137;  // A3  suction temp
-constexpr uint16_t REG_DISCHARGE_TEMP       = 2138;  // A1  discharge temp
-// A5 / A13, bench-verified 2026-11-03 (the earlier 2104 / 2101 mapping was
-// wrong: both are constant settings bytes).
-constexpr uint16_t REG_MAIN_EEV             = 2140;  // A5  main EEV opening (raw, as the OEM shows it)
-constexpr uint16_t REG_COMPRESSOR_FREQ      = 2141;  // A14 compressor frequency
-constexpr uint16_t REG_AC_VOLTAGE           = 2142;  // A13 AC input voltage (V x1; the OEM shows V/10)
-
-constexpr uint16_t INPUT_START = 2093;
-constexpr uint16_t INPUT_COUNT = 50;     // 2093–2142 (telemetry window, no prefix)
+constexpr uint16_t REG_OPERATING_MODE       = 99;
 
 // ---------------------------------------------------------------------------
 // Register metadata

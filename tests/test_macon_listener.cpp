@@ -46,7 +46,7 @@ int main() {
 
         uint8_t payload[50];
         std::memset(payload, 0, sizeof(payload));
-        payload[0] = 24;  // reg2093 cooling setpoint (whole degC)
+        payload[0] = 24;  // @0 cooling setpoint (whole degC)
         uint8_t resp[80];
         size_t rn = build_response(resp, sizeof(resp), 0, 50, payload);
 

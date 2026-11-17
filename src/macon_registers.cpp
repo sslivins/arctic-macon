@@ -15,49 +15,49 @@ struct RegEntry {
 };
 
 // clang-format off
-// MACON layout — see arctic_registers.h header comment. Every wire register is
+// MACON layout — see macon_registers.h header comment. Every wire register is
 // one byte. Temperatures are whole-°C signed bytes (scale 1.0, NOT the legacy
 // ÷2). Electrical scales validated against synchronized on-unit A-code reads:
-//   AC voltage  raw 230 → 230 V   (x1, reg2142)
+//   AC voltage  raw 230 → 230 V   (x1, @49)
 //   DC bus      raw 36  → 360 V   (x10)
 //   AC current  raw 12  → 12 A    (x1)
 //   power (A9)  raw 28  → 2800 W  (x100)  [A9 ≈ V x I, median ratio 1.02 on HP1]
 // Only confirmed Macon registers are named; unlisted addresses decode as raw
 // "Unknown" bytes rather than guessing at legacy ECO-600 meanings.
 static const RegEntry s_registers[] = {
-    // "Holding" window (base 2000) — telemetry on the Macon unit
-    { 2000, { "AC Current",             "A",     1.0f,   false } },  // A4
-    { 2001, { "DC Bus Voltage",         "V",     10.0f,  false } },  // A7
-    { 2003, { "DC Motor Speed",         "RPM",   10.0f,  false } },  // A10
-    { 2007, { "Fault(RunState)",       nullptr, 1.0f,   false } },  // bitfield
-    { 2008, { "Water Tank Temp",        "°C",    1.0f,   true  } },  // o1
-    { 2012, { "Hot-Water Ceiling",      "°C",    1.0f,   false } },  // AP13 max hot-water temp (ceiling)
-    { 2013, { "High Pressure",          nullptr, 1.0f,   true  } },  // A11 (raw; -6 = no sensor)
-    { 2014, { "Low Pressure",           nullptr, 1.0f,   false } },  // A12 (raw; 3 = no sensor)
-    { 2048, { "Aux EEV",                "steps", 10.0f,  false } },  // o6
+    // "Holding" window (@50..@107) — telemetry on the Macon unit
+    {  50, { "AC Current",             "A",     1.0f,   false } },  // A4
+    {  51, { "DC Bus Voltage",         "V",     10.0f,  false } },  // A7
+    {  53, { "DC Motor Speed",         "RPM",   10.0f,  false } },  // A10
+    {  57, { "Fault(RunState)",       nullptr, 1.0f,   false } },  // bitfield
+    {  58, { "Water Tank Temp",        "°C",    1.0f,   true  } },  // o1
+    {  62, { "Hot-Water Ceiling",      "°C",    1.0f,   false } },  // AP13 max hot-water temp (ceiling)
+    {  63, { "High Pressure",          nullptr, 1.0f,   true  } },  // A11 (raw; -6 = no sensor)
+    {  64, { "Low Pressure",           nullptr, 1.0f,   false } },  // A12 (raw; 3 = no sensor)
+    {  98, { "Aux EEV",                "steps", 10.0f,  false } },  // o6
 
-    // "Telemetry" window (base 2093)
-    { 2093, { "Cooling Setpoint",       "°C",    1.0f,   true  } },  // wire 0x0000 (controller-written)
-    { 2094, { "Heating Setpoint",       "°C",    1.0f,   true  } },  // wire 0x0001
-    { 2095, { "Hot Water Setpoint",     "°C",    1.0f,   true  } },  // wire 0x0002 (controller-written)
-    { 2113, { "IPM Temp",               "°C",    1.0f,   true  } },  // A8
-    { 2114, { "Real-time Power",        "W",     100.0f, false } },  // A9
-    { 2125, { "Fault(SensorEE)",       nullptr, 1.0f,   false } },  // bitfield
-    { 2126, { "Fault(SensorComp)",     nullptr, 1.0f,   false } },  // bitfield
-    { 2127, { "Fault(Elec)",           nullptr, 1.0f,   false } },  // bitfield
-    { 2128, { "Fault(Refrig)",         nullptr, 1.0f,   false } },  // bitfield
-    { 2129, { "Icon Bits #2",          nullptr, 1.0f,   false } },  // bit1=defrost,bit4=fan
-    { 2130, { "Status",                 nullptr, 1.0f,   false } },  // bit2=comp,bit3=pump
-    { 2132, { "Outlet Water Temp",      "°C",    1.0f,   true  } },  // o3
-    { 2133, { "Inlet Water Temp",       "°C",    1.0f,   true  } },  // o2
-    { 2134, { "Outdoor Ambient Temp",   "°C",    1.0f,   true  } },  // o4
-    { 2135, { "Cool Coil Temp",         "°C",    1.0f,   true  } },  // A6
-    { 2136, { "Coil Temp",              "°C",    1.0f,   true  } },  // A2
-    { 2137, { "Suction Temp",           "°C",    1.0f,   true  } },  // A3
-    { 2138, { "Discharge Temp",         "°C",    1.0f,   true  } },  // A1
-    { 2140, { "Main EEV",               "steps", 10.0f,  false } },  // A5
-    { 2141, { "Compressor Freq",        "Hz",    1.0f,   false } },  // A14
-    { 2142, { "AC Voltage",             "V",     1.0f,   false } },  // A13
+    // "Telemetry" window (@0..@49)
+    {   0, { "Cooling Setpoint",       "°C",    1.0f,   true  } },  // controller-written
+    {   1, { "Heating Setpoint",       "°C",    1.0f,   true  } },
+    {   2, { "Hot Water Setpoint",     "°C",    1.0f,   true  } },  // controller-written
+    {  20, { "IPM Temp",               "°C",    1.0f,   true  } },  // A8
+    {  21, { "Real-time Power",        "W",     100.0f, false } },  // A9
+    {  32, { "Fault(SensorEE)",       nullptr, 1.0f,   false } },  // bitfield
+    {  33, { "Fault(SensorComp)",     nullptr, 1.0f,   false } },  // bitfield
+    {  34, { "Fault(Elec)",           nullptr, 1.0f,   false } },  // bitfield
+    {  35, { "Fault(Refrig)",         nullptr, 1.0f,   false } },  // bitfield
+    {  36, { "Icon Bits #2",          nullptr, 1.0f,   false } },  // bit1=defrost,bit4=fan
+    {  37, { "Status",                 nullptr, 1.0f,   false } },  // bit2=comp,bit3=pump
+    {  39, { "Outlet Water Temp",      "°C",    1.0f,   true  } },  // o3
+    {  40, { "Inlet Water Temp",       "°C",    1.0f,   true  } },  // o2
+    {  41, { "Outdoor Ambient Temp",   "°C",    1.0f,   true  } },  // o4
+    {  42, { "Cool Coil Temp",         "°C",    1.0f,   true  } },  // A6
+    {  43, { "Coil Temp",              "°C",    1.0f,   true  } },  // A2
+    {  44, { "Suction Temp",           "°C",    1.0f,   true  } },  // A3
+    {  45, { "Discharge Temp",         "°C",    1.0f,   true  } },  // A1
+    {  47, { "Main EEV",               "steps", 10.0f,  false } },  // A5
+    {  48, { "Compressor Freq",        "Hz",    1.0f,   false } },  // A14
+    {  49, { "AC Voltage",             "V",     1.0f,   false } },  // A13
 };
 // clang-format on
 
@@ -127,7 +127,7 @@ struct BitDesc {
     const char *label;
 };
 
-// Status byte reg2130 (Macon) — active outputs. Confirmed live:
+// Status byte @37 (Macon) — active outputs. Confirmed live:
 //   bit2 (0x04) = compressor running, bit3 (0x08) = water pump running.
 // Other bits observed but not yet decoded.
 static const BitDesc s_status_bits[] = {

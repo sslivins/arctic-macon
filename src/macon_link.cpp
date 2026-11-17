@@ -26,19 +26,19 @@ MaconLink::MaconLink(MaconTransport &transport, int response_timeout_ms)
 // --- public setpoint API ---------------------------------------------------
 
 MaconResult MaconLink::set_cooling_setpoint(int celsius) {
-    // Cooling setpoint lives at wire addr 0x0000 (reg2093). MaconLink is a pure
+    // Cooling setpoint lives at wire addr 0x0000 (@0). MaconLink is a pure
     // transport: callers clamp to the library-owned range (clamp_setpoint) up
     // front; this writes exactly what it is given.
     return write_setpoint(0x0000, celsius);
 }
 
 MaconResult MaconLink::set_heating_setpoint(int celsius) {
-    // Heating setpoint (modes 1 and 2) lives at wire addr 0x0001 (reg2094).
+    // Heating setpoint (modes 1 and 2) lives at wire addr 0x0001 (@1).
     return write_setpoint(0x0001, celsius);
 }
 
 MaconResult MaconLink::set_hot_water_setpoint(int celsius) {
-    // Hot-water setpoint lives at wire addr 0x0002 (reg2095). See note above.
+    // Hot-water setpoint lives at wire addr 0x0002 (@2). See note above.
     return write_setpoint(0x0002, celsius);
 }
 
@@ -47,35 +47,34 @@ MaconResult MaconLink::set_working_mode(MaconWorkingMode mode) {
     if (!working_mode_selectable(mode)) {
         return MaconResult::UnsupportedRegister;
     }
-    // Working mode lives at wire addr 0x0003 (reg2096).
+    // Working mode lives at wire addr 0x0003 (@3).
     return write_byte(0x0003, static_cast<uint8_t>(mode));
 }
 
 MaconResult MaconLink::write_register(uint16_t register_address, uint8_t value) {
     for (size_t i = 0; i < tuya_codec::KNOWN_WINDOWS_COUNT; ++i) {
         const tuya_codec::RegWindow &win = tuya_codec::KNOWN_WINDOWS[i];
-        const uint16_t data_count = win.field_b - win.prefix_len;
-        if (register_address >= win.reg_base &&
-            register_address < win.reg_base + data_count) {
-            const uint16_t wire_addr =
-                win.field_a + win.prefix_len + (register_address - win.reg_base);
-            return write_byte(wire_addr, value);
+        // The register address IS the wire offset; only offsets inside a
+        // known read window are accepted.
+        if (register_address >= win.field_a + win.prefix_len &&
+            register_address < win.field_a + win.field_b) {
+            return write_byte(register_address, value);
         }
     }
     return MaconResult::UnsupportedRegister;
 }
 
 MaconResult MaconLink::read_cooling_setpoint(int *out_celsius) {
-    return read_setpoint(REG_COOLING_SETPOINT - tuya_codec::KNOWN_WINDOWS[0].reg_base, out_celsius);
+    return read_setpoint(REG_COOLING_SETPOINT, out_celsius);
 }
 
 MaconResult MaconLink::read_hot_water_setpoint(int *out_celsius) {
-    return read_setpoint(REG_HOT_WATER_SETPOINT - tuya_codec::KNOWN_WINDOWS[0].reg_base, out_celsius);
+    return read_setpoint(REG_HOT_WATER_SETPOINT, out_celsius);
 }
 
 MaconResult MaconLink::read_heating_setpoint(int *out_celsius) {
-    // UNVERIFIED register (reg2094). See header / docs/REGISTERS.md.
-    return read_setpoint(REG_HEATING_SETPOINT - tuya_codec::KNOWN_WINDOWS[0].reg_base, out_celsius);
+    // UNVERIFIED register (@1). See header / docs/REGISTERS.md.
+    return read_setpoint(REG_HEATING_SETPOINT, out_celsius);
 }
 
 // --- private transaction helpers -------------------------------------------
@@ -112,7 +111,7 @@ MaconResult MaconLink::read_setpoint(uint16_t byte_offset, int *out_celsius) {
 
     // Read the whole telemetry window (wire addr 0, count 50). Every setpoint is
     // one byte at offset == its wire address inside this block.
-    const tuya_codec::RegWindow &win = tuya_codec::KNOWN_WINDOWS[0];  // {0,50,2093,0}
+    const tuya_codec::RegWindow &win = tuya_codec::KNOWN_WINDOWS[0];  // {0,50,0}: @0..@49
     uint8_t req[16];
     const size_t n = tuya_codec::encode_request(req, sizeof(req),
                                                 tuya_codec::FC_READ,

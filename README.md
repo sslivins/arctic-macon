@@ -15,9 +15,9 @@ register table, and the fault-code decoding that were previously copy-pasted
 |------|------------------|
 | `tuya_codec.{h,cpp}` | Frame parse/encode + checksum for the `55 AA …` Tuya-MCU wire format. Pure, dependency-free. |
 | `macon_registers.{h,cpp}` | Macon register numbering, per-register metadata (name/unit/scale/signed), value + bitmap formatting, `register_lookup()`. |
-| `macon_faults.{h,cpp}` | **Canonical fault table** — the five fault bitfield registers (2007, 2125, 2126, 2127, 2128) mapped bit-by-bit to their LCD/app codes, plus `macon_decode_faults()` returning active `{code, label, severity}`. Each site also carries a stable i18n key (`label_msg_id`, plus `macon_fault_resolution_msg_id()`) that UIs translate with the English text as fallback, and a `wired_display` flag for codes the OEM wired controller doesn't show. |
-| `macon_advanced_params.{h,cpp}` | The installer-only **advanced ("Cn") parameter** table (`reg = 2000 + Cn`) with per-parameter valid range / default / unit from the vendor doc, plus `validate_advanced_write()` — a **reject-not-clamp** write guardrail. |
-| `macon_state.{h,cpp}` | **Domain decode layer** — `decode_state(base, regs, count, &MaconState)` turns a raw Macon register image into one authoritative decoded struct (mode, temps, electrical, setpoints, run/flags, raw fault registers). Owns which register carries which field. Also `decode_mode()`/`MaconMode` for the reg2049 reversing-valve direction. |
+| `macon_faults.{h,cpp}` | **Canonical fault table** — the five fault bitfield registers (@57, @32, @33, @34, @35) mapped bit-by-bit to their LCD/app codes, plus `macon_decode_faults()` returning active `{code, label, severity}`. Each site also carries a stable i18n key (`label_msg_id`, plus `macon_fault_resolution_msg_id()`) that UIs translate with the English text as fallback, and a `wired_display` flag for codes the OEM wired controller doesn't show. |
+| `macon_advanced_params.{h,cpp}` | The installer-only **advanced ("Cn") parameter** table (each parameter mapped to its wire byte offset) with per-parameter valid range / default / unit from the vendor doc, plus `validate_advanced_write()` — a **reject-not-clamp** write guardrail. |
+| `macon_state.{h,cpp}` | **Domain decode layer** — `decode_state(base, regs, count, &MaconState)` turns a raw Macon register image into one authoritative decoded struct (mode, temps, electrical, setpoints, run/flags, raw fault registers). Owns which register carries which field. Also `decode_mode()`/`MaconMode` for the @99 reversing-valve direction. |
 | `macon_fluid.{h,cpp}` | **Loop fluid properties** — `loop_fluid_properties()` gives the specific heat and density of water or propylene/ethylene glycol (0–60% by volume, 0–60 °C, ASHRAE tables) for the heat output and COP estimate. `estimate_performance_with_temps()` in `macon_state.h` takes supply/return temperatures from finer external sensors. |
 | `macon_link.{h,cpp}` | **Transaction layer (Layer 2)** — `MaconLink` performs synchronous setpoint transactions and verified absolute-register writes (`write_register()`) over an injected `MaconTransport` the consumer implements on its UART. Still pure/host-testable. |
 | `macon_image.{h,cpp}` | **Opaque register image** — master side ingests polled windows (`ingest_bytes`) and decodes; slave side (simulator) builds state with semantic setters (`set_flag`, `set_working_mode`, `set_operating_direction`, `set_fault_site`, `fill_baseline`), serves windows (`read_window`) and applies fc=0x06 writes (`apply_write`). Not thread-safe. |
@@ -36,12 +36,12 @@ The OEM controller (bus master) **sets** a setpoint by writing one signed byte
 mainboard replies with a 9-byte ACK echoing `addr`+`count`. Confirmed live
 2026-07-09:
 
-| function | wire addr | reg | status |
-|----------|-----------|-----|--------|
-| Cooling setpoint | `0x0000` | `reg2093` | confirmed |
-| Heating setpoint (modes 1 and 2) | `0x0001` | `reg2094` | Confirmed on the bench (OEM wired controller) |
-| Hot-water setpoint (live) | `0x0002` | `reg2095` | confirmed |
-| Hot-water **ceiling** (Cn13, not a live setpoint) | — | `reg2012` | manual's "Highest setting temperature of hot water" (20~55 °C, default 50) |
+| function | offset (wire addr) | status |
+|----------|--------------------|--------|
+| Cooling setpoint | `@0` (`0x0000`) | confirmed |
+| Heating setpoint (modes 1 and 2) | `@1` (`0x0001`) | Confirmed on the bench (OEM wired controller) |
+| Hot-water setpoint (live) | `@2` (`0x0002`) | confirmed |
+| Hot-water **ceiling** (Cn13, not a live setpoint) | `@62` | manual's "Highest setting temperature of hot water" (20~55 °C, default 50) |
 
 A non-exception ACK means accepted + applied, so the ACK is the authoritative
 confirmation. A NACK/exception frame has never been observed on this unit; its
@@ -69,7 +69,8 @@ available for consumers that own their own TX loop and only need the bytes.
 ## Advanced ("Cn") parameters — DANGER
 
 `macon_advanced_params.{h,cpp}` describes the installer-only Cn configuration
-block (holding registers **2013–2057**, `reg = 2000 + Cn`). These are
+block (mostly holding-window offsets **@63–@107**; the Cn→offset map is a
+table, not a formula). These are
 **read/write** and dangerous: blind or out-of-range writes have previously put
 the controller into a bad/cycling state.
 
@@ -80,8 +81,8 @@ clamps) anything out of range / not-in-enum / unknown, and also refuses any
 parameter whose exact register index has not yet been confirmed on the
 simulator (`needs_sim_confirm`). Only **Cn38** and **Cn40** are index-confirmed
 today — both from exact external anchors (Cn40=−1 was the manufacturer's glycol
-setting, matching live `reg2040=−1`; Cn38's −30 default matches live
-`reg2038=−30`). Clearing `needs_sim_confirm` for the rest is done one parameter
+setting, matching live `@90=−1`; Cn38's −30 default matches live
+`@88=−30`). Clearing `needs_sim_confirm` for the rest is done one parameter
 at a time as the simulator pins each index.
 
 Some parameters use the sign as a separate setting: AP40 is negative for a
@@ -129,7 +130,7 @@ resulting bytes in a register image it owns, and calls
 
 ## Fault table
 
-The five fault registers are all 8-bit bitfields. `reg 2007` bit 5 (`0x20`) is
+The five fault registers are all 8-bit bitfields. `@57` bit 5 (`0x20`) is
 the hot-water **RUN** indicator, not a fault (severity `INFO`, skipped by
 `macon_decode_faults`). The rest were reverse-engineered live on the real unit
 (2026-07-05) one bit at a time against the OEM LCD and the Smart Life app.

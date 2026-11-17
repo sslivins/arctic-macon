@@ -19,7 +19,7 @@ static int g_failures = 0;
         }                                                                  \
     } while (0)
 
-static constexpr uint16_t BASE  = 2000;
+static constexpr uint16_t BASE  = 0;
 static constexpr size_t   COUNT = 143;
 
 int main() {
@@ -51,31 +51,31 @@ int main() {
     CHECK(macon_fault_resolution(MaconFaultId::Unknown) != nullptr);
 
     // --- site id: distinct per (reg,bit), same id for duplicate-code sites --
-    MaconFaultSiteId s1 = macon_fault_site_id(2125, 0);  // E28 outdoor
-    MaconFaultSiteId s2 = macon_fault_site_id(2125, 5);  // E28 indoor
+    MaconFaultSiteId s1 = macon_fault_site_id(32, 0);  // E28 outdoor
+    MaconFaultSiteId s2 = macon_fault_site_id(32, 5);  // E28 indoor
     CHECK(s1 != 0 && s2 != 0 && s1 != s2);
-    CHECK(macon_fault_site_id(2126, 3) == 0);            // no fault at that bit
+    CHECK(macon_fault_site_id(33, 3) == 0);            // no fault at that bit
     CHECK(macon_fault_site_id(9999, 0) == 0);
 
     // --- has_fault_id over raw bytes ----------------------------------------
-    // reg2127 bit7 = P02.
+    // @34 bit7 = P02.
     CHECK(macon_has_fault_id(0, 0, 0, 0x80, 0, MaconFaultId::HighPressureProtection));
     CHECK(!macon_has_fault_id(0, 0, 0, 0x00, 0, MaconFaultId::HighPressureProtection));
     // EepromError present if EITHER site is lit.
-    CHECK(macon_has_fault_id(0, 0x01, 0, 0, 0, MaconFaultId::EepromError));  // 2125:0
-    CHECK(macon_has_fault_id(0, 0x20, 0, 0, 0, MaconFaultId::EepromError));  // 2125:5
+    CHECK(macon_has_fault_id(0, 0x01, 0, 0, 0, MaconFaultId::EepromError));  // @32:0
+    CHECK(macon_has_fault_id(0, 0x20, 0, 0, 0, MaconFaultId::EepromError));  // @32:5
     CHECK(!macon_has_fault_id(0, 0, 0, 0, 0, MaconFaultId::Unknown));
 
     // --- decode fills id + site ---------------------------------------------
     uint16_t regs[COUNT] = {0};
     macon_set_fault_by_code(regs, BASE, COUNT, "P02", true);
     MaconFault out[16];
-    size_t n = macon_decode_faults(regs[2007 - BASE], regs[2125 - BASE],
-                                   regs[2126 - BASE], regs[2127 - BASE],
-                                   regs[2128 - BASE], out, 16);
+    size_t n = macon_decode_faults(regs[57 - BASE], regs[32 - BASE],
+                                   regs[33 - BASE], regs[34 - BASE],
+                                   regs[35 - BASE], out, 16);
     CHECK(n == 1);
     CHECK(out[0].id == MaconFaultId::HighPressureProtection);
-    CHECK(out[0].site == macon_fault_site_id(2127, 7));
+    CHECK(out[0].site == macon_fault_site_id(34, 7));
 
     // --- macon_state_has_fault (decode + gate without codes) ----------------
     MaconState st;
@@ -111,9 +111,9 @@ int main() {
     CHECK(macon_fault_bit_for_site(0) == nullptr);
     CHECK(macon_fault_bit_for_site(0xFFFF) == nullptr);
 
-    // --- FA: DC fan motor (reg2127 bit0), found on the OEM app 2026-09-26 ----
+    // --- FA: DC fan motor (@34 bit0), found on the OEM app 2026-09-26 ----
     CHECK(macon_fault_id_from_code("FA") == MaconFaultId::DcFanMotor);
-    CHECK(macon_fault_site_id(2127, 0) != 0);
+    CHECK(macon_fault_site_id(34, 0) != 0);
     CHECK(macon_has_fault_id(0, 0, 0, 0x01, 0, MaconFaultId::DcFanMotor));
     CHECK(std::strstr(macon_fault_resolution(MaconFaultId::DcFanMotor), "fan motor") != nullptr);
 
@@ -124,8 +124,8 @@ int main() {
         CHECK(macon_fault_bits_for_code(c, fb, 2) == 1);
         CHECK(!fb[0]->wired_display);
     }
-    CHECK(macon_fault_bit(2127, 7)->wired_display);   // P02
-    CHECK(macon_fault_bit(2128, 4)->wired_display);   // P30
+    CHECK(macon_fault_bit(34, 7)->wired_display);   // P02
+    CHECK(macon_fault_bit(35, 4)->wired_display);   // P30
 
     // --- i18n keys: every fault site has a unique "fault.*.label" key -------
     for (size_t i = 0; i < MACON_FAULT_BITS_COUNT; ++i) {

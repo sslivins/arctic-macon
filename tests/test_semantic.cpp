@@ -31,7 +31,7 @@ static MaconState master_view(const MaconImage &sim) {
         uint8_t buf[256];
         const size_t n = sim.read_window(win.field_a, win.field_b, buf, sizeof(buf));
         CHECK(n == win.field_b);
-        master.ingest_bytes(win.reg_base, buf + win.prefix_len, n - win.prefix_len);
+        master.ingest_bytes(win.field_a + win.prefix_len, buf + win.prefix_len, n - win.prefix_len);
     }
     MaconState s;
     master.decode(&s);
@@ -238,7 +238,7 @@ static void test_apply_write() {
     CHECK(master_view(img).cooling_setpoint == -5);
     // A write into the holding window lands there too.
     const uint8_t ceil[1] = { 55 };
-    CHECK(img.apply_write(50 + 12, ceil, 1));   // wire 62 = reg2012
+    CHECK(img.apply_write(62, ceil, 1));   // AP13 ceiling @62
     CHECK(local_view(img).hot_water_ceiling == 55);
 
     // Outside every window (or straddling the end) -> rejected, image untouched.
@@ -295,7 +295,7 @@ static void test_fault_catalog() {
 
     // The RUN indicator is not injectable as a fault site.
     MaconImage img;
-    CHECK(!img.set_fault_site(macon_fault_site_id(2007, 5), true));
+    CHECK(!img.set_fault_site(macon_fault_site_id(57, 5), true));
     CHECK(!img.set_fault_site(0, true));
 
     CHECK(std::strcmp(macon_fault_severity_name(FaultSeverity::FAULT), "error") == 0);
@@ -319,16 +319,16 @@ static void test_oem_codes() {
     // o5 is unused on this unit; every other code maps to exactly one field.
     struct Expect { const char *code; const char *field; uint16_t reg; };
     const Expect expected[] = {
-        { "o1",  "water_tank_temp",      2008 }, { "o2",  "inlet_water_temp",     2133 },
-        { "o3",  "outlet_water_temp",    2132 }, { "o4",  "outdoor_ambient_temp", 2134 },
-        { "o6",  "aux_eev",              2048 }, { "A1",  "discharge_temp",       2138 },
-        { "A2",  "outdoor_coil_temp",    2136 }, { "A3",  "suction_temp",         2137 },
-        { "A4",  "ac_current",           2000 }, { "A5",  "primary_eev",          2140 },
-        { "A6",  "indoor_coil_temp",     2135 }, { "A7",  "dc_voltage",           2001 },
-        { "A8",  "ipm_temp",             2113 }, { "A9",  "realtime_power",       2114 },
-        { "A10", "fan_speed",            2003 }, { "A11", "high_pressure",        2013 },
-        { "A12", "low_pressure",         2014 }, { "A13", "ac_voltage",           2142 },
-        { "A14", "compressor_freq",      2141 },
+        { "o1",  "water_tank_temp",      58 }, { "o2",  "inlet_water_temp",     40 },
+        { "o3",  "outlet_water_temp",    39 }, { "o4",  "outdoor_ambient_temp", 41 },
+        { "o6",  "aux_eev",              98 }, { "A1",  "discharge_temp",       45 },
+        { "A2",  "outdoor_coil_temp",    43 }, { "A3",  "suction_temp",         44 },
+        { "A4",  "ac_current",           50 }, { "A5",  "primary_eev",          47 },
+        { "A6",  "indoor_coil_temp",     42 }, { "A7",  "dc_voltage",           51 },
+        { "A8",  "ipm_temp",             20 }, { "A9",  "realtime_power",       21 },
+        { "A10", "fan_speed",            53 }, { "A11", "high_pressure",        63 },
+        { "A12", "low_pressure",         64 }, { "A13", "ac_voltage",           49 },
+        { "A14", "compressor_freq",      48 },
     };
     for (const Expect &e : expected) {
         const MaconFieldDesc *d = macon_field_find(e.field);

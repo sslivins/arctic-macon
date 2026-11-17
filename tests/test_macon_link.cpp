@@ -53,9 +53,9 @@ static size_t build_telemetry(uint8_t *buf, size_t cap,
                               int8_t cooling, int8_t aux, int8_t hotwater) {
     uint8_t payload[50];
     std::memset(payload, 0, sizeof(payload));
-    payload[0] = static_cast<uint8_t>(cooling);   // reg2093
-    payload[1] = static_cast<uint8_t>(aux);       // reg2094
-    payload[2] = static_cast<uint8_t>(hotwater);  // reg2095
+    payload[0] = static_cast<uint8_t>(cooling);   // @0
+    payload[1] = static_cast<uint8_t>(aux);       // @1
+    payload[2] = static_cast<uint8_t>(hotwater);  // @2
     return tuya_codec::encode_response(buf, cap, tuya_codec::FC_READ,
                                        /*field_a=*/0, /*field_b=*/50, payload);
 }
@@ -84,8 +84,8 @@ int main() {
     }
 
     // ----------------------------------------------------------------------
-    // write_register: absolute holding-register addresses are translated to
-    // unified wire offsets (reg2013 -> holding offset 50 + 13 = 63).
+    // write_register: the register address IS the wire byte offset and goes
+    // on the wire unchanged (A11 high pressure @63 -> addr 0x003F).
     // ----------------------------------------------------------------------
     {
         FakeTransport t;
@@ -94,7 +94,7 @@ int main() {
         t.queue(ack, an);
 
         MaconLink link(t);
-        CHECK(link.write_register(2013, 45) == MaconResult::Ok);
+        CHECK(link.write_register(63, 45) == MaconResult::Ok);
 
         uint8_t want[16];
         uint8_t data = 45;
@@ -110,7 +110,7 @@ int main() {
         t.queue(ack, an);
 
         MaconLink link(t);
-        CHECK(link.write_register(2095, 50) == MaconResult::Ok);
+        CHECK(link.write_register(2, 50) == MaconResult::Ok);
     }
 
     {
@@ -175,7 +175,7 @@ int main() {
         CHECK(t.written.empty());
     }
 
-    // set_heating_setpoint: wire addr 0x0001 (reg2094), bench-confirmed.
+    // set_heating_setpoint: wire addr 0x0001 (@1), bench-confirmed.
     {
         FakeTransport t;
         uint8_t ack[16];
@@ -256,7 +256,7 @@ int main() {
         t.queue(resp, rn);
         MaconLink link(t);
         int v = -999;
-        CHECK(link.read_heating_setpoint(&v) == MaconResult::Ok);  // reg2094
+        CHECK(link.read_heating_setpoint(&v) == MaconResult::Ok);  // @1
         CHECK(v == 40);
     }
 

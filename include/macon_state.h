@@ -28,7 +28,7 @@
 namespace arctic {
 
 // ---------------------------------------------------------------------------
-// Operating mode (reg2049, reversing-valve direction)
+// Operating mode (@99, reversing-valve direction)
 // ---------------------------------------------------------------------------
 
 enum class MaconMode : uint8_t {
@@ -37,7 +37,7 @@ enum class MaconMode : uint8_t {
     Unknown = 0xFF,   // any raw pattern we have not ground-truthed
 };
 
-// reg2049 behaves as a bitfield. Only bit2 (0x04) has ever been observed
+// @99 behaves as a bitfield. Only bit2 (0x04) has ever been observed
 // toggling (heating<->cooling) across the full historical dataset; no other bit
 // is ever set. Decode on that bit specifically so an unrelated future flag bit
 // can't break cooling detection, but still surface Unknown if an unobserved bit
@@ -45,24 +45,24 @@ enum class MaconMode : uint8_t {
 constexpr uint8_t MODE_COOL_BIT   = 0x04;   // reversing valve energized = cooling
 constexpr uint8_t MODE_KNOWN_MASK = 0x04;   // the only bit whose meaning is confirmed
 
-/// Decode a raw reg2049 value into a MaconMode. `raw` is the wire register value
+/// Decode a raw @99 value into a MaconMode. `raw` is the wire register value
 /// (one byte on this unit). Returns Unknown if any unconfirmed bit is set.
 MaconMode decode_mode(uint16_t raw);
 
 /// Human-readable name for a MaconMode ("Heating", "Cooling", "Unknown").
 const char *mode_name(MaconMode m);
 
-// Selected working mode (reg2096). Mapped on the bench against the OEM wired
+// Selected working mode (@3). Mapped on the bench against the OEM wired
 // controller (2026-09-26, arctic-macon#36):
-//   0 cooling icon, setpoint reg2093          (in the OEM mode-button cycle)
-//   1 heating icon (solid), setpoint reg2094
-//   2 heating icon (flashing), setpoint reg2094. In the field this is the
+//   0 cooling icon, setpoint @0          (in the OEM mode-button cycle)
+//   1 heating icon (solid), setpoint @1
+//   2 heating icon (flashing), setpoint @1. In the field this is the
 //     unit's anti-freeze (freeze protection) state: while idle it switches to
 //     2 when inlet/outlet water reaches 2.0 C, runs the pump ~30 s to pull warm
 //     water through, then returns to the selected mode.
-//   3 heating icon (solid), setpoint holding reg2010 (P2, not editable)
-//   4 heating icon (flashing), setpoint holding reg2011 (P3)
-//   5 hot water icon, setpoint reg2095        (in the cycle)
+//   3 heating icon (solid), setpoint @60 (P2, not editable)
+//   4 heating icon (flashing), setpoint @61 (P3)
+//   5 hot water icon, setpoint @2        (in the cycle)
 //   6 cooling + hot water icons               (in the cycle; formerly "auto")
 //   7+ out of range (icons without setpoints)
 // Modes 2-4 are decoded so they can be shown, but they are not selectable:
@@ -91,7 +91,7 @@ bool working_mode_selectable(MaconWorkingMode mode);
 // ---------------------------------------------------------------------------
 
 // Assumed full-scale fan speed in RPM. The real hardware maximum is not yet
-// known (the raw reg2003 range has only been observed up to ~72 => ~720 RPM;
+// known (the raw @53 range has only been observed up to ~72 => ~720 RPM;
 // the ×10 scale itself is tach-verified);
 // consumers should size fan gauges/bars as a percentage of THIS value rather
 // than hardcoding a max, so the single place to revise once a live maximum is
@@ -116,8 +116,8 @@ struct MaconState {
     MaconWorkingMode working_mode;
     bool             working_mode_valid;
 
-    // Run / flags. `running` follows the mainboard run-state (reg2007 bit5);
-    // compressor/pump/defrost/fan come from the reg2129/reg2130 icon bitfields.
+    // Run / flags. `running` follows the mainboard run-state (@57 bit5);
+    // compressor/pump/defrost/fan come from the @36/@37 icon bitfields.
     bool     running;
     bool     compressor_on;
     bool     pump_on;
@@ -125,53 +125,53 @@ struct MaconState {
     bool     cooling_on;
     bool     cooling_on_valid;
     bool     fan_on;
-    uint16_t fan_level;         // reg2003 A10 DC motor speed in RPM (raw ×10)
+    uint16_t fan_level;         // @53 A10 DC motor speed in RPM (raw ×10)
     uint16_t fan_speed_max;     // full-scale fan speed in RPM (MACON_FAN_SPEED_MAX_RPM)
 
     // Temperatures (signed whole °C).
-    int16_t water_tank_c;       bool water_tank_valid;      // reg2008 o1
-    int16_t outlet_c;           bool outlet_valid;          // reg2132 o3 (supply)
-    int16_t inlet_c;            bool inlet_valid;           // reg2133 o2 (return)
-    int16_t outdoor_ambient_c;  bool outdoor_ambient_valid; // reg2134 o4
-    int16_t indoor_coil_c;      bool indoor_coil_valid;     // reg2135 A6 cool coil
-    int16_t ipm_c;              bool ipm_valid;             // reg2113 A8
-    int16_t discharge_c;        bool discharge_valid;       // reg2138 A1
-    int16_t suction_c;          bool suction_valid;         // reg2137 A3
-    int16_t outdoor_coil_c;     bool outdoor_coil_valid;    // reg2136 A2
+    int16_t water_tank_c;       bool water_tank_valid;      // @58 o1
+    int16_t outlet_c;           bool outlet_valid;          // @39 o3 (supply)
+    int16_t inlet_c;            bool inlet_valid;           // @40 o2 (return)
+    int16_t outdoor_ambient_c;  bool outdoor_ambient_valid; // @41 o4
+    int16_t indoor_coil_c;      bool indoor_coil_valid;     // @42 A6 cool coil
+    int16_t ipm_c;              bool ipm_valid;             // @20 A8
+    int16_t discharge_c;        bool discharge_valid;       // @45 A1
+    int16_t suction_c;          bool suction_valid;         // @44 A3
+    int16_t outdoor_coil_c;     bool outdoor_coil_valid;    // @43 A2
 
     // Setpoints.
-    int16_t cooling_setpoint;   bool cooling_setpoint_valid;    // reg2093 wire 0x0000 (controller-written)
-    int16_t hot_water_setpoint; bool hot_water_setpoint_valid;  // reg2095 wire 0x0002 (controller-written, live)
-    int16_t heating_setpoint;   bool heating_setpoint_valid;    // reg2094 wire 0x0001 (heating, modes 1 and 2; bench-confirmed)
-    int16_t hot_water_ceiling;  bool hot_water_ceiling_valid;   // reg2012 AP13 max hot-water temp (ceiling, not live)
+    int16_t cooling_setpoint;   bool cooling_setpoint_valid;    // @0 (controller-written)
+    int16_t hot_water_setpoint; bool hot_water_setpoint_valid;  // @2 (controller-written, live)
+    int16_t heating_setpoint;   bool heating_setpoint_valid;    // @1 (heating, modes 1 and 2; bench-confirmed)
+    int16_t hot_water_ceiling;  bool hot_water_ceiling_valid;   // @62 AP13 max hot-water temp (ceiling, not live)
 
     // Electrical.
-    uint16_t ac_current;        bool ac_current_valid;      // reg2000 A4
-    uint16_t ac_voltage;        bool ac_voltage_valid;      // reg2142 A13 (V x1)
-    uint16_t dc_voltage;        bool dc_voltage_valid;      // reg2001 A7 (already x10 => volts)
+    uint16_t ac_current;        bool ac_current_valid;      // @50 A4
+    uint16_t ac_voltage;        bool ac_voltage_valid;      // @49 A13 (V x1)
+    uint16_t dc_voltage;        bool dc_voltage_valid;      // @51 A7 (already x10 => volts)
     // EEV openings in motor steps (0..MACON_EEV_MAX_STEPS). ASSUMPTION: the wire
     // byte (what the OEM display shows) is signed steps / 10 - see docs/REGISTERS.md.
     // Negative readings (re-zero overdrive after a stop) are reported as 0.
-    uint16_t primary_eev;       bool primary_eev_valid;     // reg2140 A5 (raw x10 => steps)
-    uint16_t aux_eev;           bool aux_eev_valid;         // reg2048 o6 auxiliary (EVI) EEV (raw x10 => steps)
-    uint16_t compressor_freq;   bool compressor_freq_valid; // reg2141 A14
-    uint32_t realtime_power_w;  bool realtime_power_valid;  // reg2114 A9 (x100 => W)
+    uint16_t primary_eev;       bool primary_eev_valid;     // @47 A5 (raw x10 => steps)
+    uint16_t aux_eev;           bool aux_eev_valid;         // @98 o6 auxiliary (EVI) EEV (raw x10 => steps)
+    uint16_t compressor_freq;   bool compressor_freq_valid; // @48 A14
+    uint32_t realtime_power_w;  bool realtime_power_valid;  // @21 A9 (x100 => W)
 
     // Refrigerant pressures: raw bytes as the OEM shows them (unit/scale
     // unknown). Units without transducers read a constant -6 / 3, so consumers
     // should not display these by default.
-    int16_t  high_pressure;     bool high_pressure_valid;   // reg2013 A11 (signed)
-    uint16_t low_pressure;      bool low_pressure_valid;    // reg2014 A12
+    int16_t  high_pressure;     bool high_pressure_valid;   // @63 A11 (signed)
+    uint16_t low_pressure;      bool low_pressure_valid;    // @64 A12
 
     // Raw Macon fault/run registers. These are address-encapsulated here so the
     // consumer no longer needs the reg numbers; the bit->fault decode itself is
     // still applied by the consumer's legacy pipeline in Phase 1. Native fault
     // decode (typed enum) is deferred to Phase 2.
-    uint8_t fault_run;    // reg2007 (bit5 0x20 = RUN indicator, not a fault)
-    uint8_t fault_ee;     // reg2125 sensor/EE/comm E-codes
-    uint8_t fault_comp;   // reg2126 sensor/comm/compressor
-    uint8_t fault_elec;   // reg2127 electrical/power-stage
-    uint8_t fault_ref;    // reg2128 refrigerant/protection
+    uint8_t fault_run;    // @57 (bit5 0x20 = RUN indicator, not a fault)
+    uint8_t fault_ee;     // @32 sensor/EE/comm E-codes
+    uint8_t fault_comp;   // @33 sensor/comm/compressor
+    uint8_t fault_elec;   // @34 electrical/power-stage
+    uint8_t fault_ref;    // @35 refrigerant/protection
     bool    faults_valid; // all five present
 };
 
@@ -196,7 +196,7 @@ struct DecodeStatus {
 /// preserving the original bare-array behaviour.
 ///
 /// Behaviour is a faithful port of the controller's former applyMaconMapping()
-/// register->field logic, plus the reg2049 mode field.
+/// register->field logic, plus the @99 mode field.
 DecodeStatus decode_state(uint16_t base, const uint16_t *regs, size_t count,
                           MaconState *out, const bool *present = nullptr);
 
@@ -220,7 +220,7 @@ bool macon_state_has_fault(const MaconState &s, MaconFaultId id);
 
 enum class MaconOperation : uint8_t {
     Unknown,   // status registers were absent from the decoded window
-    Off,       // enabled bit (reg2007 0x20) clear — unit standby
+    Off,       // enabled bit (@57 0x20) clear — unit standby
     Fault,     // an active fault is present
     Idle,      // enabled but the compressor is not running
     Defrost,   // defrost cycle active
@@ -231,14 +231,14 @@ enum class MaconOperation : uint8_t {
 /// Derive the overall operating state from a decoded MaconState.
 ///
 /// Priority: Unknown (no data) -> Fault -> Off -> Defrost -> Idle -> direction.
-/// The "compressor running" gate is the reg2141 frequency (> 0), NOT the reg2130
-/// icon bit: on this unit reg2130 reads 0 even while the compressor runs, so the
+/// The "compressor running" gate is the @48 frequency (> 0), NOT the @37
+/// icon bit: on this unit @37 reads 0 even while the compressor runs, so the
 /// icon bit would falsely report Idle.
 MaconOperation decode_operation(const MaconState &s);
 
-/// Live heating/cooling direction: the reg2129 reversing-valve bit, else the
-/// working mode, else reg2049. Unknown in Auto (hot water + cooling) without
-/// the live bit, because reg2049 can stay at "cooling" while the unit heats.
+/// Live heating/cooling direction: the @36 reversing-valve bit, else the
+/// working mode, else @99. Unknown in Auto (hot water + cooling) without
+/// the live bit, because @99 can stay at "cooling" while the unit heats.
 MaconMode live_direction(const MaconState &s);
 
 /// Human-readable name for a MaconOperation (e.g. "Heating", "Idle", "Defrost").
@@ -249,7 +249,7 @@ const char *operation_name(MaconOperation op);
 // ---------------------------------------------------------------------------
 //
 // COP = heat moved across the water side / electrical power drawn. The library
-// can decode the electrical power (reg2114) and the water in/out temperatures,
+// can decode the electrical power (@21) and the water in/out temperatures,
 // but the water-side heat transfer also needs the WATER FLOW RATE — which is a
 // property of the external circulator pump, NOT anything the Macon mainboard
 // reports. This unit has only a flow *switch* (P01 protection), never a flow
@@ -342,7 +342,7 @@ size_t encode_cooling_setpoint(uint8_t *buf, size_t buf_capacity, int celsius);
 // below the OEM HMI's own 12 °C floor), so these guardrails are ours to own.
 //
 // Cooling has no unit-reported limit register, so the library owns fixed
-// defaults. Hot-water's max tracks the unit's live ceiling (reg2012 AP13) when
+// defaults. Hot-water's max tracks the unit's live ceiling (@62 AP13) when
 // present, falling back to a default otherwise.
 
 enum class SetpointKind : uint8_t { Cooling, Heating, HotWater };
@@ -354,7 +354,7 @@ struct SetpointLimits {
 };
 
 /// Effective allowed range for `kind`. Pass a decoded `state` to let the max
-/// track a live limit register (currently hot-water ceiling reg2012); pass
+/// track a live limit register (currently hot-water ceiling @62); pass
 /// nullptr for the pure library defaults.
 SetpointLimits setpoint_limits(SetpointKind kind, const MaconState *state = nullptr);
 
